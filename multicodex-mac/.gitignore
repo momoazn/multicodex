@@ -1,0 +1,16 @@
+# Swift / Xcode
+.build/
+DerivedData/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Packaging
+build/
+*.dmg
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
