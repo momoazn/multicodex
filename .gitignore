@@ -1,0 +1,19 @@
+# Swift / Xcode
+.build/
+DerivedData/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Packaging
+build/
+*.dmg
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Node (tooling removed, keep local installs ignored)
+node_modules/
