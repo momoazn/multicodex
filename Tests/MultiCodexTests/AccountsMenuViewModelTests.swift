@@ -89,7 +89,7 @@ final class AccountsMenuViewModelTests: XCTestCase {
         XCTAssertNil(persisted.selectedSettingsAccountName)
     }
 
-    func testUpdateCustomCodexPathUpdatesServiceAndStore() {
+    func testUpdateCustomRuntimePathUpdatesServiceAndStore() {
         let defaults = ephemeralDefaults()
         let service = MockCodexAccountService()
         let viewModel = AccountsMenuViewModel(
@@ -99,11 +99,87 @@ final class AccountsMenuViewModelTests: XCTestCase {
             startImmediately: false
         )
 
-        viewModel.updateCustomCodexPath(" /usr/local/bin/codex ")
+        viewModel.updateCustomRuntimePath(" /usr/local/bin/codex ")
 
         XCTAssertEqual(service.customCodexPath, "/usr/local/bin/codex")
         let persisted = AppPreferencesStore(defaults: defaults)
         XCTAssertEqual(persisted.customCodexPath, "/usr/local/bin/codex")
+    }
+
+    func testSelectingAgentSwitchesServicesAndPersistsSelection() async {
+        let defaults = ephemeralDefaults()
+        let codexService = MockCodexAccountService(agentKind: .codex, capabilities: .codex)
+        codexService.stubbedAccounts = [
+            AccountEntry(name: "alpha", isCurrent: true, hasAuth: true, lastUsedAt: nil, lastLoginStatus: nil),
+        ]
+        let piService = MockCodexAccountService(agentKind: .pi, capabilities: .pi)
+        piService.probeRuntimeResult = RuntimeProbe(isAvailable: true, summary: "pi ok")
+        piService.stubbedAccounts = [
+            AccountEntry(name: "work", isCurrent: true, hasAuth: true, lastUsedAt: nil, lastLoginStatus: nil),
+        ]
+        let viewModel = AccountsMenuViewModel(
+            codexService: codexService,
+            piService: piService,
+            fileManager: .default,
+            preferences: AppPreferencesStore(defaults: defaults),
+            startImmediately: false
+        )
+
+        viewModel.selectAgent(.pi)
+
+        await waitUntil(timeoutSeconds: 1.0) {
+            viewModel.selectedAgent == .pi && viewModel.accounts.first?.name == "work"
+        }
+
+        XCTAssertEqual(viewModel.selectedAgent, .pi)
+        XCTAssertEqual(viewModel.currentAgentTitle, "Pi")
+        XCTAssertEqual(AppPreferencesStore(defaults: defaults).selectedAgent, .pi)
+    }
+
+    func testExecutePendingAccountRemovalRequiresTypedNameWhenDeletingData() async {
+        let defaults = ephemeralDefaults()
+        let service = MockCodexAccountService()
+        service.stubbedAccounts = [
+            AccountEntry(name: "alpha", isCurrent: true, hasAuth: true, lastUsedAt: nil, lastLoginStatus: nil),
+        ]
+        let viewModel = AccountsMenuViewModel(
+            accountService: service,
+            fileManager: .default,
+            preferences: AppPreferencesStore(defaults: defaults),
+            startImmediately: false
+        )
+
+        viewModel.beginAccountRemoval(named: "alpha", deleteData: true)
+        viewModel.executePendingAccountRemoval(confirming: "wrong")
+
+        XCTAssertEqual(viewModel.pendingAccountRemovalRequest?.accountName, "alpha")
+        XCTAssertEqual(viewModel.accountActionError, "Type the account name to confirm delete-data removal.")
+        XCTAssertEqual(service.removeCalls.count, 0)
+    }
+
+    func testExecutePendingAccountRemovalRunsRemovalWhenTypedNameMatches() async {
+        let defaults = ephemeralDefaults()
+        let service = MockCodexAccountService()
+        service.stubbedAccounts = [
+            AccountEntry(name: "alpha", isCurrent: true, hasAuth: true, lastUsedAt: nil, lastLoginStatus: nil),
+        ]
+        let viewModel = AccountsMenuViewModel(
+            accountService: service,
+            fileManager: .default,
+            preferences: AppPreferencesStore(defaults: defaults),
+            startImmediately: false
+        )
+
+        viewModel.beginAccountRemoval(named: "alpha", deleteData: true)
+        viewModel.executePendingAccountRemoval(confirming: "alpha")
+
+        await waitUntil(timeoutSeconds: 1.0) {
+            !service.removeCalls.isEmpty
+        }
+
+        XCTAssertNil(viewModel.pendingAccountRemovalRequest)
+        XCTAssertEqual(service.removeCalls.first?.name, "alpha")
+        XCTAssertEqual(service.removeCalls.first?.deleteData, true)
     }
 
     func testPerformRefreshHandlesFirstFailureThenWarningFallback() async {
@@ -679,7 +755,7 @@ final class AccountsMenuViewModelTests: XCTestCase {
     }
 }
 
-private final class MockCodexAccountService: CodexAccountServicing {
+private final class MockCodexAccountService: CodingAgentServicing {
     struct LoginCall {
         let account: String
         let createIfNeeded: Bool
@@ -691,7 +767,9 @@ private final class MockCodexAccountService: CodexAccountServicing {
         let deleteData: Bool
     }
 
-    var customCodexPath: String?
+    let agentKind: AgentKind
+    let capabilities: AgentCapabilities
+    var customRuntimePath: String?
     var limitsCacheTTLSeconds: Int = CodexAccountService.defaultLimitsCacheTTLSeconds
     var resolutionHint: String?
     var stubbedAccounts: [AccountEntry] = []
@@ -723,6 +801,16 @@ private final class MockCodexAccountService: CodexAccountServicing {
     private(set) var openNewLoginCalls: [String] = []
     private(set) var loginInAppCalls: [LoginCall] = []
     private(set) var fetchLimitsRefreshLiveCalls: [Bool] = []
+
+    init(agentKind: AgentKind = .codex, capabilities: AgentCapabilities = .codex) {
+        self.agentKind = agentKind
+        self.capabilities = capabilities
+    }
+
+    var customCodexPath: String? {
+        get { customRuntimePath }
+        set { customRuntimePath = newValue }
+    }
 
     func fetchAccounts() async throws -> AccountsListPayload {
         if let fetchAccountsError {

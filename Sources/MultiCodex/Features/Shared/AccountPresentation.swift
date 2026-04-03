@@ -40,10 +40,10 @@ enum AccountPresentation {
         }
     }
 
-    static func runtimeStatus(summary: String?, isAvailable: Bool) -> RuntimeStatusPresentation {
+    static func runtimeStatus(summary: String?, isAvailable: Bool, agent: AgentKind) -> RuntimeStatusPresentation {
         if isAvailable {
             return RuntimeStatusPresentation(
-                text: summary ?? "codex runtime is available.",
+                text: summary ?? "\(agent.runtimeDisplayName) runtime is available.",
                 symbol: "checkmark.circle.fill",
                 color: .green
             )
@@ -58,7 +58,7 @@ enum AccountPresentation {
         }
 
         return RuntimeStatusPresentation(
-            text: "Checking codex runtime...",
+            text: "Checking \(agent.runtimeDisplayName) runtime...",
             symbol: "clock",
             color: .secondary
         )

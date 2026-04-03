@@ -4,6 +4,7 @@ import XCTest
 final class MenuAlertPolicyTests: XCTestCase {
     func testRuntimeAlertHasHighestPriority() {
         let alert = MenuAlertPolicy.prioritizedAlert(
+            agent: .codex,
             isRuntimeAvailable: false,
             runtimeSummary: "runtime missing",
             lastRefreshError: "refresh failed",
@@ -16,6 +17,7 @@ final class MenuAlertPolicyTests: XCTestCase {
 
     func testRefreshAlertComesBeforeAuthAlert() {
         let alert = MenuAlertPolicy.prioritizedAlert(
+            agent: .codex,
             isRuntimeAvailable: true,
             runtimeSummary: nil,
             lastRefreshError: "refresh failed",
@@ -28,6 +30,7 @@ final class MenuAlertPolicyTests: XCTestCase {
 
     func testAuthAlertWhenOnlyLoginIssueExists() {
         let alert = MenuAlertPolicy.prioritizedAlert(
+            agent: .codex,
             isRuntimeAvailable: true,
             runtimeSummary: nil,
             lastRefreshError: nil,

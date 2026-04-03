@@ -25,6 +25,38 @@ final class AppPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: AppPreferencesStore.Keys.customCodexPath), "/usr/local/bin/codex")
     }
 
+    func testSelectedAgentDefaultsToCodexAndPersists() {
+        let defaults = ephemeralDefaults()
+        var store = AppPreferencesStore(defaults: defaults)
+
+        XCTAssertEqual(store.selectedAgent, .codex)
+
+        store.selectedAgent = .pi
+
+        let persisted = AppPreferencesStore(defaults: defaults)
+        XCTAssertEqual(persisted.selectedAgent, .pi)
+    }
+
+    func testRuntimePathForCodexFallsBackToLegacyKey() {
+        let defaults = ephemeralDefaults()
+        defaults.set("/legacy/codex", forKey: AppPreferencesStore.Keys.customCodexPath)
+
+        let store = AppPreferencesStore(defaults: defaults)
+        XCTAssertEqual(store.runtimePath(for: .codex), "/legacy/codex")
+    }
+
+    func testRuntimePathPersistsPerAgent() {
+        let defaults = ephemeralDefaults()
+        let store = AppPreferencesStore(defaults: defaults)
+
+        store.setRuntimePath("/usr/local/bin/codex", for: .codex)
+        store.setRuntimePath("/usr/local/bin/pi", for: .pi)
+
+        let persisted = AppPreferencesStore(defaults: defaults)
+        XCTAssertEqual(persisted.runtimePath(for: .codex), "/usr/local/bin/codex")
+        XCTAssertEqual(persisted.runtimePath(for: .pi), "/usr/local/bin/pi")
+    }
+
     func testDefaultsForDisplaySettings() {
         let defaults = ephemeralDefaults()
         var store = AppPreferencesStore(defaults: defaults)

@@ -18,16 +18,20 @@ The app stays in a single SwiftPM executable target and is organized into clear 
   - App lifecycle and top-level scene wiring.
 - `Sources/MultiCodex/Core/Accounts`
   - Account-focused domain payloads, UI state models, merge policy, alert prioritization.
+- `Sources/MultiCodex/Core/Agents`
+  - Generic agent kind/capability/service registry types.
 - `Sources/MultiCodex/Core/Usage`
   - Usage/rate-limit models and formatting helpers.
 - `Sources/MultiCodex/Infrastructure/Codex`
   - Codex-specific auth/runtime/usage implementations.
+- `Sources/MultiCodex/Infrastructure/Pi`
+  - Pi runtime and profile management.
 - `Sources/MultiCodex/Infrastructure/Preferences`
   - App preference persistence.
 - `Sources/MultiCodex/Features/MenuBar`
   - Menu bar content and status UI.
 - `Sources/MultiCodex/Features/Settings`
-  - Settings screens and account management UI.
+  - Settings screens and account/profile management UI.
 - `Sources/MultiCodex/Features/Shared`
   - Shared view model and reusable UI presentation components.
 
@@ -35,9 +39,10 @@ The app stays in a single SwiftPM executable target and is organized into clear 
 
 This cleanup intentionally favors simpler internals over legacy compatibility branches:
 
-- Storage paths remain unchanged:
+- Codex storage paths remain unchanged:
   - `MULTICODEX_HOME` (default `~/.config/multicodex`)
   - `~/.codex/auth.json`
+- Pi profiles are stored under MultiCodex-managed profile directories and use `PI_CODING_AGENT_DIR` for isolated login sessions.
 - `config.json` continues to use schema version `2`.
 - Legacy schema version `1` config parsing and legacy `UserDefaults` fallback keys were removed.
 - Build/dev workflow is Swift + `just` only (no npm layer).

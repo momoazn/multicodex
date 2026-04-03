@@ -5,6 +5,14 @@ enum AccountActionOutcome {
     case failure(String)
 }
 
+struct AccountActionError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? {
+        message
+    }
+}
+
 @MainActor
 final class AccountActionController {
     unowned let viewModel: AccountsMenuViewModel
@@ -52,14 +60,18 @@ final class AccountActionController {
             do {
                 let session = try self.makeInteractiveLoginSession(accountName: accountName, createIfNeeded: createIfNeeded)
                 self.viewModel.pendingInteractiveLoginSession = nil
-                _ = try await self.viewModel.accountService.loginInApp(
-                    account: accountName,
-                    createIfNeeded: createIfNeeded,
-                    loginHome: session.loginSandboxHome
-                )
-                await self.completeInteractiveLogin(session: session, preserveFailedSession: false)
+                if self.viewModel.agentCapabilities.supportsInAppLogin {
+                    _ = try await self.viewModel.accountService.loginInApp(
+                        account: accountName,
+                        createIfNeeded: createIfNeeded,
+                        loginHome: session.loginSandboxHome
+                    )
+                    await self.completeInteractiveLogin(session: session, preserveFailedSession: false)
+                } else {
+                    self.launchTerminalLoginFallback(accountName: accountName, createIfNeeded: createIfNeeded, rootError: AccountActionError(message: "Interactive terminal login required."))
+                }
             } catch {
-                if self.shouldFallbackToTerminal(error) {
+                if self.shouldFallbackToTerminal(error) || !self.viewModel.agentCapabilities.supportsInAppLogin {
                     self.launchTerminalLoginFallback(accountName: accountName, createIfNeeded: createIfNeeded, rootError: error)
                 } else {
                     self.setAccountFeedback(message: nil, error: error.localizedDescription)
@@ -244,9 +256,11 @@ final class AccountActionController {
         let homeURL = URL(fileURLWithPath: rootURL.path, isDirectory: true)
         let codexURL = homeURL.appendingPathComponent(".codex", isDirectory: true)
         let multicodexURL = homeURL.appendingPathComponent(".config/multicodex", isDirectory: true)
+        let piAgentURL = homeURL.appendingPathComponent(".pi/agent", isDirectory: true)
         try viewModel.fileManager.createDirectory(at: homeURL, withIntermediateDirectories: true)
         try viewModel.fileManager.createDirectory(at: codexURL, withIntermediateDirectories: true)
         try viewModel.fileManager.createDirectory(at: multicodexURL, withIntermediateDirectories: true)
+        try viewModel.fileManager.createDirectory(at: piAgentURL, withIntermediateDirectories: true)
         return rootURL.path
     }
 }

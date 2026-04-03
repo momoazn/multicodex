@@ -3,8 +3,9 @@ import SwiftUI
 struct SettingsContentView: View {
     @ObservedObject var viewModel: AccountsMenuViewModel
 
-    @State var codexPathDraft = ""
+    @State var runtimePathDraft = ""
     @State var renameDrafts: [String: String] = [:]
+    @State var deleteConfirmationName = ""
 
     var body: some View {
         NavigationSplitView {
@@ -22,15 +23,22 @@ struct SettingsContentView: View {
         .navigationSplitViewStyle(.balanced)
         .background(settingsBackground)
         .onAppear {
-            codexPathDraft = viewModel.customCodexPath
+            runtimePathDraft = viewModel.customRuntimePath
             syncRenameDrafts()
             if viewModel.selectedSettingsSection == .advanced {
                 viewModel.setAdvancedSettingsVisible(true)
             }
         }
-        .onChange(of: viewModel.customCodexPath) { codexPathDraft = $0 }
+        .onChange(of: viewModel.customRuntimePath) { runtimePathDraft = $0 }
         .onChange(of: viewModel.accounts.map(\.name)) { _ in
             syncRenameDrafts()
+        }
+        .onChange(of: viewModel.selectedAgent) { _ in
+            runtimePathDraft = viewModel.customRuntimePath
+            syncRenameDrafts()
+        }
+        .sheet(isPresented: removalSheetBinding) {
+            removalConfirmationSheet
         }
     }
 

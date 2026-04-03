@@ -10,6 +10,7 @@ struct MenuAccountQuickRow: View {
     let isBusy: Bool
     let isSwitching: Bool
     let isAuthRunning: Bool
+    let showsUsage: Bool
     let onSelect: () -> Void
     let onPrimaryAction: () -> Void
     let onToggleExpanded: () -> Void
@@ -42,14 +43,20 @@ struct MenuAccountQuickRow: View {
                         )
                     }
 
-                    HStack(spacing: 8) {
-                        Text("5h \(row.fiveHourPercent)")
-                        Text("weekly \(row.weeklyPercent)")
-                        Text(row.resetText)
-                            .lineLimit(1)
+                    if showsUsage {
+                        HStack(spacing: 8) {
+                            Text("5h \(row.fiveHourPercent)")
+                            Text("weekly \(row.weeklyPercent)")
+                            Text(row.resetText)
+                                .lineLimit(1)
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        Text("Usage metrics unavailable for this agent.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
                 }
 
                 if row.connectionState != .connected, let hint = row.account.connectionHint {
@@ -90,19 +97,25 @@ struct MenuAccountQuickRow: View {
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: max(6, layout.sectionSpacing - 2)) {
-                        AccountUsageMetricCard(
-                            title: "5h",
-                            metric: row.account.usage.fiveHour,
-                            resetDisplayMode: row.resetDisplayMode,
-                            progressValue: fiveHourProgressValue
-                        )
-                        AccountUsageMetricCard(
-                            title: "weekly",
-                            metric: row.account.usage.weekly,
-                            resetDisplayMode: row.resetDisplayMode,
-                            progressValue: weeklyProgressValue
-                        )
+                    if showsUsage {
+                        HStack(spacing: max(6, layout.sectionSpacing - 2)) {
+                            AccountUsageMetricCard(
+                                title: "5h",
+                                metric: row.account.usage.fiveHour,
+                                resetDisplayMode: row.resetDisplayMode,
+                                progressValue: fiveHourProgressValue
+                            )
+                            AccountUsageMetricCard(
+                                title: "weekly",
+                                metric: row.account.usage.weekly,
+                                resetDisplayMode: row.resetDisplayMode,
+                                progressValue: weeklyProgressValue
+                            )
+                        }
+                    } else {
+                        Text("Usage metrics are not available for this agent.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
 
                     if row.connectionState == .connected, let hint = row.account.connectionHint {
