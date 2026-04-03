@@ -101,9 +101,9 @@ final class AccountsMenuViewModelTests: XCTestCase {
 
         viewModel.updateCustomRuntimePath(" /usr/local/bin/codex ")
 
-        XCTAssertEqual(service.customCodexPath, "/usr/local/bin/codex")
+        XCTAssertEqual(service.customRuntimePath, "/usr/local/bin/codex")
         let persisted = AppPreferencesStore(defaults: defaults)
-        XCTAssertEqual(persisted.customCodexPath, "/usr/local/bin/codex")
+        XCTAssertEqual(persisted.runtimePath(for: .codex), "/usr/local/bin/codex")
     }
 
     func testSelectingAgentSwitchesServicesAndPersistsSelection() async {
@@ -805,11 +805,6 @@ private final class MockCodexAccountService: CodingAgentServicing {
     init(agentKind: AgentKind = .codex, capabilities: AgentCapabilities = .codex) {
         self.agentKind = agentKind
         self.capabilities = capabilities
-    }
-
-    var customCodexPath: String? {
-        get { customRuntimePath }
-        set { customRuntimePath = newValue }
     }
 
     func fetchAccounts() async throws -> AccountsListPayload {

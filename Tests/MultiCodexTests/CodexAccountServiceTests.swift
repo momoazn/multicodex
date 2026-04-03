@@ -99,7 +99,7 @@ final class CodexAccountServiceTests: XCTestCase {
 
     func testFetchLimitsReportsApiThenRpcFallbackFailure() async throws {
         let service = makeSandboxedService()
-        service.customCodexPath = "/not/a/real/codex/path"
+        service.customRuntimePath = "/not/a/real/codex/path"
 
         _ = try await service.addAccount(name: "alpha")
 
@@ -152,7 +152,7 @@ final class CodexAccountServiceTests: XCTestCase {
 
     func testFetchStatusRestoresDefaultAuthAfterCommandFailure() async throws {
         let service = makeSandboxedService()
-        service.customCodexPath = "/not/a/real/codex/path"
+        service.customRuntimePath = "/not/a/real/codex/path"
 
         let sandbox = try XCTUnwrap(service.sandboxHomeDirectory)
 

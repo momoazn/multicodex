@@ -43,12 +43,6 @@ struct AppPreferencesStore {
         }
     }
 
-    // Backward-compatible convenience used by existing tests and callers during migration.
-    var customCodexPath: String {
-        get { runtimePath(for: .codex) }
-        set { setRuntimePath(newValue, for: .codex) }
-    }
-
     var resetDisplayMode: ResetDisplayMode {
         get {
             let raw = defaults.string(forKey: Keys.resetDisplayMode) ?? ""
