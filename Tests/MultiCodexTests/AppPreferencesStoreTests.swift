@@ -2,11 +2,12 @@ import XCTest
 @testable import MultiCodex
 
 final class AppPreferencesStoreTests: XCTestCase {
-    func testCustomCodexPathDefaultsToEmptyWhenUnset() {
+    func testRuntimePathDefaultsToEmptyWhenUnset() {
         let defaults = ephemeralDefaults()
 
         let store = AppPreferencesStore(defaults: defaults)
-        XCTAssertEqual(store.customCodexPath, "")
+        XCTAssertEqual(store.runtimePath(for: .codex), "")
+        XCTAssertEqual(store.runtimePath(for: .pi), "")
     }
 
     func testSelectedSettingsAccountDefaultsToNilWhenUnset() {
@@ -16,12 +17,13 @@ final class AppPreferencesStoreTests: XCTestCase {
         XCTAssertNil(store.selectedSettingsAccountName)
     }
 
-    func testSettingCustomCodexPathPersistsCanonicalKey() {
+    func testSettingRuntimePathPersistsPerAgentAndLegacyCodexKey() {
         let defaults = ephemeralDefaults()
 
-        var store = AppPreferencesStore(defaults: defaults)
-        store.customCodexPath = "/usr/local/bin/codex"
+        let store = AppPreferencesStore(defaults: defaults)
+        store.setRuntimePath("/usr/local/bin/codex", for: .codex)
 
+        XCTAssertEqual(defaults.string(forKey: "multicodexMenu.runtimePath.codex"), "/usr/local/bin/codex")
         XCTAssertEqual(defaults.string(forKey: AppPreferencesStore.Keys.customCodexPath), "/usr/local/bin/codex")
     }
 
