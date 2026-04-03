@@ -46,7 +46,7 @@ final class AccountsRefreshController {
             )
             viewModel.lastUpdatedAt = Date()
             viewModel.cliResolutionHint = viewModel.accountService.resolutionHint
-            if allowAutoSwitch, viewModel.switchingAccountName == nil {
+            if allowAutoSwitch, viewModel.supportsAutoSwitching, viewModel.switchingAccountName == nil {
                 switchRecommendation = AccountSwitchRecommendationService.recommendation(
                     for: viewModel.accountSwitchingStrategy,
                     accounts: viewModel.accounts
@@ -127,7 +127,7 @@ final class AccountsRefreshController {
 
     func refreshRuntimeProbe() {
         let probe = viewModel.accountService.probeRuntime()
-        viewModel.isCodexRuntimeAvailable = probe.isAvailable
+        viewModel.isRuntimeAvailable = probe.isAvailable
         viewModel.runtimeProbeSummary = probe.summary
     }
 

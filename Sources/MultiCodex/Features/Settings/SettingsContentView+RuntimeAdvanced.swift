@@ -4,7 +4,7 @@ extension SettingsContentView {
     func accountUsageSection(_ account: AccountUsage) -> some View {
         settingsInsetPanel(
             title: "Usage",
-            description: "Current usage for this account."
+            description: "Current usage for this \(viewModel.currentAccountNounSingular)."
         ) {
             HStack(spacing: 10) {
                 AccountUsageMetricCard(
@@ -28,27 +28,34 @@ extension SettingsContentView {
     func accountDangerSection(_ account: AccountUsage) -> some View {
         settingsInsetPanel(
             title: "Danger Zone",
-            description: "Remove this account from MultiCodex."
+            description: "Permanent actions for this \(viewModel.currentAccountNounSingular)."
         ) {
-            Button("Remove Account", role: .destructive) {
-                showRemovalConfirmation(for: account.name)
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Removing a \(viewModel.currentAccountNounSingular) disconnects it from MultiCodex. Deleting data also clears stored files.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 8) {
+                        Button("Remove \(viewModel.currentAccountNounSingular)", role: .destructive) {
+                            viewModel.beginAccountRemoval(named: account.name, deleteData: false)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Button("Remove + delete data", role: .destructive) {
+                            viewModel.beginAccountRemoval(named: account.name, deleteData: true)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(.top, 8)
+            } label: {
+                Label("Show destructive actions", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.red)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(isAccountActionRunning)
-        }
-    }
-
-    private func showRemovalConfirmation(for accountName: String) {
-        let alert = NSAlert()
-        alert.messageText = "Remove \"\(accountName)\"?"
-        alert.informativeText = "This disconnects the account from MultiCodex."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Remove")
-        alert.addButton(withTitle: "Cancel")
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            viewModel.removeAccount(named: accountName, deleteData: false)
         }
     }
 
@@ -57,12 +64,22 @@ extension SettingsContentView {
             VStack(alignment: .leading, spacing: 10) {
                 settingsSectionIntro(
                     title: "Runtime",
-                    description: "Choose a custom CLI path or use auto-detect."
+                    description: "Choose a custom \(viewModel.currentRuntimeName) path or use auto-detect."
                 )
+
+                settingsFormRow("Agent") {
+                    Picker("Agent", selection: agentBinding) {
+                        ForEach(AgentKind.allCases) { agent in
+                            Text(agent.title).tag(agent)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
 
                 settingsInfoRow(symbol: runtimeStatus.symbol, text: runtimeStatus.text, color: runtimeStatus.color)
 
-                TextField("/opt/homebrew/bin/codex", text: $codexPathDraft)
+                TextField(viewModel.selectedAgent.runtimePathPlaceholder, text: $runtimePathDraft)
                     .textFieldStyle(.roundedBorder)
 
                 if let probe = viewModel.runtimeProbeSummary {
@@ -72,25 +89,25 @@ extension SettingsContentView {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("Leave this empty to auto-detect `codex` from known paths or from your shell PATH.")
+                Text("Leave this empty to auto-detect `\(viewModel.currentRuntimeName)` from known paths or from your shell PATH.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
                     ActionPillButton(title: "Save", symbol: "checkmark", role: .primary) {
-                        viewModel.updateCustomCodexPath(codexPathDraft)
+                        viewModel.updateCustomRuntimePath(runtimePathDraft)
                     }
-                    .disabled(normalized(codexPathDraft) == viewModel.customCodexPath)
+                    .disabled(normalized(runtimePathDraft) == viewModel.customRuntimePath)
 
                     ActionPillButton(title: "Choose", symbol: "folder") {
-                        viewModel.chooseCustomCodexPath()
+                        viewModel.chooseCustomRuntimePath()
                     }
 
                     ActionPillButton(title: "Use Auto", symbol: "sparkles") {
-                        codexPathDraft = ""
-                        viewModel.clearCustomCodexPath()
+                        runtimePathDraft = ""
+                        viewModel.clearCustomRuntimePath()
                     }
-                    .disabled(viewModel.customCodexPath.isEmpty)
+                    .disabled(viewModel.customRuntimePath.isEmpty)
                 }
             }
         }
@@ -129,18 +146,27 @@ extension SettingsContentView {
                     }
                 }
 
-                settingsInsetPanel(
-                    title: "Usage Indicators",
-                    description: "Pick whether the bars emphasize remaining budget or usage consumed."
-                ) {
-                    settingsFormRow("Usage bars", detail: viewModel.usageBarStyle.descriptionText) {
-                        Picker("Usage bars", selection: usageBarStyleBinding) {
-                            ForEach(UsageBarStyle.allCases) { style in
-                                Text(style.title).tag(style)
+                if viewModel.supportsUsage {
+                    settingsInsetPanel(
+                        title: "Usage Indicators",
+                        description: "Pick whether the bars emphasize remaining budget or usage consumed."
+                    ) {
+                        settingsFormRow("Usage bars", detail: viewModel.usageBarStyle.descriptionText) {
+                            Picker("Usage bars", selection: usageBarStyleBinding) {
+                                ForEach(UsageBarStyle.allCases) { style in
+                                    Text(style.title).tag(style)
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
                         }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
+                    }
+                } else {
+                    settingsInsetPanel(
+                        title: "Usage Indicators",
+                        description: "Pi does not expose Codex-style rate-limit usage in v1."
+                    ) {
+                        settingsInfoRow(symbol: "info.circle", text: "Usage bars are only shown for agents that expose usage data.")
                     }
                 }
             }
@@ -166,10 +192,12 @@ extension SettingsContentView {
                         .foregroundStyle(.secondary)
                 }
 
-                settingsFormRow("Cache TTL", detail: "Controls how often usage limits refresh automatically.") {
-                    Stepper(value: limitsCacheTTLMinutesBinding, in: 1...120) {
-                        Text("\(viewModel.limitsCacheTTLMinutes) min")
-                            .font(.caption.weight(.semibold))
+                if viewModel.supportsUsage {
+                    settingsFormRow("Cache TTL", detail: "Controls how often usage limits refresh automatically.") {
+                        Stepper(value: limitsCacheTTLMinutesBinding, in: 1...120) {
+                            Text("\(viewModel.limitsCacheTTLMinutes) min")
+                                .font(.caption.weight(.semibold))
+                        }
                     }
                 }
 
@@ -178,8 +206,8 @@ extension SettingsContentView {
                         viewModel.openMulticodexConfigDirectory()
                     }
 
-                    ActionPillButton(title: "Refresh Live", symbol: "bolt.horizontal.fill", role: .primary) {
-                        viewModel.refreshLive()
+                    ActionPillButton(title: viewModel.supportsUsage ? "Refresh Live" : "Refresh", symbol: viewModel.supportsUsage ? "bolt.horizontal.fill" : "arrow.clockwise", role: .primary) {
+                        viewModel.supportsUsage ? viewModel.refreshLive() : viewModel.refresh()
                     }
                 }
             }
@@ -238,6 +266,62 @@ extension SettingsContentView {
                 }
             }
         }
+    }
+
+    var removalConfirmationSheet: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let request = viewModel.pendingAccountRemovalRequest {
+                Text(request.deleteData ? "Remove \(viewModel.currentAccountNounSingular) and delete data" : "Remove \(viewModel.currentAccountNounSingular)")
+                    .font(.headline)
+
+                Text(
+                    request.deleteData
+                        ? "This permanently removes \(request.accountName) and deletes its stored local data."
+                        : "This removes \(request.accountName) from MultiCodex but leaves its data intact."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                if request.deleteData {
+                    Text("Type \"\(request.accountName)\" to confirm.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    TextField("\(viewModel.currentAccountNounSingular.capitalized) name", text: $deleteConfirmationName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                HStack {
+                    Spacer()
+
+                    Button("Cancel") {
+                        deleteConfirmationName = ""
+                        viewModel.cancelPendingAccountRemoval()
+                    }
+
+                    Button(request.deleteData ? "Delete Data" : "Remove", role: .destructive) {
+                        viewModel.executePendingAccountRemoval(confirming: deleteConfirmationName)
+                        if viewModel.pendingAccountRemovalRequest == nil {
+                            deleteConfirmationName = ""
+                        }
+                    }
+                    .disabled(!canConfirmRemoval(request))
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 390)
+    }
+
+    func canConfirmRemoval(_ request: PendingAccountRemovalRequest) -> Bool {
+        if isAccountActionRunning {
+            return false
+        }
+        if request.deleteData {
+            return deleteConfirmationName.trimmingCharacters(in: .whitespacesAndNewlines) == request.accountName
+        }
+        return true
     }
 
     func feedbackRow(_ text: String, color: Color) -> some View {

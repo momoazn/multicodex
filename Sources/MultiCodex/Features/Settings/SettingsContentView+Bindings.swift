@@ -1,6 +1,13 @@
 import SwiftUI
 
 extension SettingsContentView {
+    var agentBinding: Binding<AgentKind> {
+        Binding(
+            get: { viewModel.selectedAgent },
+            set: { viewModel.selectAgent($0) }
+        )
+    }
+
     var sidebarSelectionBinding: Binding<SettingsSection?> {
         Binding(
             get: { viewModel.selectedSettingsSection },
@@ -67,7 +74,8 @@ extension SettingsContentView {
     var runtimeStatus: RuntimeStatusPresentation {
         AccountPresentation.runtimeStatus(
             summary: viewModel.runtimeProbeSummary,
-            isAvailable: viewModel.isCodexRuntimeAvailable
+            isAvailable: viewModel.isRuntimeAvailable,
+            agent: viewModel.selectedAgent
         )
     }
 

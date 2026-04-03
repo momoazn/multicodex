@@ -5,10 +5,18 @@ extension SettingsContentView {
         SettingsPanelCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 8) {
-                    settingsInfoRow(symbol: "person.2.fill", text: "\(viewModel.accounts.count) accounts")
+                    settingsInfoRow(symbol: "person.2.fill", text: "\(viewModel.accounts.count) \(viewModel.currentAccountNounPlural)")
                     settingsInfoRow(symbol: runtimeStatus.symbol, text: runtimeStatus.text, color: runtimeStatus.color)
 
                     Spacer(minLength: 0)
+
+                    Picker("Agent", selection: agentBinding) {
+                        ForEach(AgentKind.allCases) { agent in
+                            Text(agent.title).tag(agent)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
 
                     HStack(spacing: 8) {
                         ActionPillButton(
@@ -43,7 +51,8 @@ extension SettingsContentView {
                     )
 
                     HStack(spacing: 8) {
-                        dashboardMetric(title: "Current Account", value: viewModel.currentAccount?.name ?? "None")
+                        dashboardMetric(title: "Agent", value: viewModel.currentAgentTitle)
+                        dashboardMetric(title: "Current \(viewModel.currentAccountNounSingular.capitalized)", value: viewModel.currentAccount?.name ?? "None")
                         dashboardMetric(title: "Needs Login", value: "\(viewModel.accountsNeedingLogin.count)")
                         dashboardMetric(title: "Setup", value: viewModel.onboardingState.step.title)
                     }
@@ -84,9 +93,15 @@ extension SettingsContentView {
             VStack(alignment: .leading, spacing: 10) {
                 settingsSectionIntro(
                     title: "First-Run Setup",
+<<<<<<< HEAD
                     description: viewModel.onboardingState.isComplete
                         ? "Setup is complete. Reset the wizard to walk through the steps again."
                         : "Finish the initial setup."
+||||||| parent of 8841916 (feat: add multi-agent scaffold and pi support)
+                    description: "Finish the initial setup."
+=======
+                    description: "Finish the initial setup for \(viewModel.currentAgentTitle)."
+>>>>>>> 8841916 (feat: add multi-agent scaffold and pi support)
                 )
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -110,7 +125,7 @@ extension SettingsContentView {
                             viewModel.selectSettingsSection(.runtime)
                         }
                     case .login:
-                        ActionPillButton(title: "Login First Account", symbol: "person.crop.circle.badge.plus", role: .primary) {
+                        ActionPillButton(title: "Login First \(viewModel.currentAccountNounSingular.capitalized)", symbol: "person.crop.circle.badge.plus", role: .primary) {
                             viewModel.startNewAccountLogin()
                         }
                     case .verify:
@@ -152,13 +167,13 @@ extension SettingsContentView {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 10) {
                     settingsSectionIntro(
-                        title: "Accounts",
-                        description: "Manage saved accounts."
+                        title: viewModel.currentAccountNounPlural.capitalized,
+                        description: "Manage saved \(viewModel.currentAccountNounPlural) for \(viewModel.currentAgentTitle)."
                     )
 
                     Spacer(minLength: 0)
 
-                    ActionPillButton(title: "Login New Account", symbol: "person.crop.circle.badge.plus", role: .primary, isDisabled: isAccountActionRunning) {
+                    ActionPillButton(title: "Login New \(viewModel.currentAccountNounSingular.capitalized)", symbol: "person.crop.circle.badge.plus", role: .primary, isDisabled: isAccountActionRunning) {
                         viewModel.startNewAccountLogin()
                     }
                 }
@@ -171,7 +186,9 @@ extension SettingsContentView {
                     feedbackRow(error, color: .red)
                 }
 
-                accountSwitchingSection
+                if viewModel.supportsAutoSwitching {
+                    accountSwitchingSection
+                }
 
                 if viewModel.accounts.isEmpty {
                     noAccountsState
@@ -190,8 +207,8 @@ extension SettingsContentView {
 
     var noAccountsState: some View {
         settingsInsetPanel(
-            title: "No accounts yet",
-            description: "Connect your first account to start tracking usage and switching identities."
+            title: "No \(viewModel.currentAccountNounPlural) yet",
+            description: "Connect your first \(viewModel.currentAccountNounSingular) to start managing identities for \(viewModel.currentAgentTitle)."
         ) {
             settingsInfoRow(symbol: runtimeStatus.symbol, text: runtimeStatus.text, color: runtimeStatus.color)
         }
@@ -200,7 +217,7 @@ extension SettingsContentView {
     var accountSwitchingSection: some View {
         settingsInsetPanel(
             title: "Switching Strategy",
-            description: "Choose how MultiCodex should decide when to move between accounts."
+            description: "Choose how MultiCodex should decide when to move between \(viewModel.currentAccountNounPlural)."
         ) {
             settingsFormRow("Strategy", detail: viewModel.accountSwitchingStrategy.descriptionText) {
                 Picker("Switching strategy", selection: accountSwitchingStrategyBinding) {
@@ -220,7 +237,7 @@ extension SettingsContentView {
 
             settingsFormRow(
                 "Auto-switch notifications",
-                detail: "Optional silent notification when MultiCodex switches accounts for you."
+                detail: "Optional silent notification when MultiCodex switches \(viewModel.currentAccountNounPlural) for you."
             ) {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Show silent notifications", isOn: autoSwitchNotificationsBinding)
@@ -238,7 +255,7 @@ extension SettingsContentView {
 
             settingsInfoRow(
                 symbol: "info.circle",
-                text: "If Codex is already running, you may need to restart that session after login or account switching."
+                text: "If \(viewModel.currentAgentTitle) is already running, you may need to restart that session after login or account switching."
             )
         }
     }
@@ -266,12 +283,12 @@ extension SettingsContentView {
     }
 
     var accountListPane: some View {
-        settingsInsetPanel(title: "Saved Accounts") {
-            TextField("Search accounts", text: accountSearchBinding)
+        settingsInsetPanel(title: "Saved \(viewModel.currentAccountNounPlural.capitalized)") {
+            TextField("Search \(viewModel.currentAccountNounPlural)", text: accountSearchBinding)
                 .textFieldStyle(.roundedBorder)
 
             if viewModel.filteredAccounts.isEmpty {
-                Text("No accounts match your search.")
+                Text("No \(viewModel.currentAccountNounPlural) match your search.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -335,15 +352,17 @@ extension SettingsContentView {
                 VStack(alignment: .leading, spacing: 8) {
                     accountIdentitySection(account)
                     accountAuthSection(account)
-                    accountUsageSection(account)
+                    if viewModel.supportsUsage {
+                        accountUsageSection(account)
+                    }
                     accountDangerSection(account)
                 }
             }
             .scrollIndicators(.hidden)
         } else {
             settingsInsetPanel(
-                title: "Select an account",
-                description: "Choose an account from the list to manage it."
+                title: "Select a \(viewModel.currentAccountNounSingular)",
+                description: "Choose a \(viewModel.currentAccountNounSingular) from the list to manage it."
             ) {
                 EmptyView()
             }
@@ -354,10 +373,10 @@ extension SettingsContentView {
     func accountIdentitySection(_ account: AccountUsage) -> some View {
         settingsInsetPanel(
             title: "Identity",
-            description: "Rename the account so it is easy to recognize."
+            description: "Rename the \(viewModel.currentAccountNounSingular) so it is easy to recognize."
         ) {
             settingsFormRow("Display name") {
-                TextField("Rename account", text: renameBinding(for: account.name))
+                TextField("Rename \(viewModel.currentAccountNounSingular)", text: renameBinding(for: account.name))
                     .textFieldStyle(.roundedBorder)
             }
 
@@ -381,7 +400,7 @@ extension SettingsContentView {
     func accountAuthSection(_ account: AccountUsage) -> some View {
         settingsInsetPanel(
             title: "Authentication",
-            description: "Switch, log in again, or import auth for this account."
+            description: "Switch, log in again, or import auth for this \(viewModel.currentAccountNounSingular)."
         ) {
             HStack(spacing: 6) {
                 if !account.isCurrent {
@@ -399,15 +418,19 @@ extension SettingsContentView {
                 }
                 .disabled(isAccountActionRunning)
 
-                ActionPillButton(title: "Status", symbol: "person.crop.circle.badge.checkmark") {
-                    viewModel.checkLoginStatus(for: account.name)
+                if viewModel.agentCapabilities.supportsStatusCheck {
+                    ActionPillButton(title: "Status", symbol: "person.crop.circle.badge.checkmark") {
+                        viewModel.checkLoginStatus(for: account.name)
+                    }
+                    .disabled(isAccountActionRunning)
                 }
-                .disabled(isAccountActionRunning)
 
-                ActionPillButton(title: "Import Auth", symbol: "square.and.arrow.down") {
-                    viewModel.importCurrentAuth(into: account.name)
+                if viewModel.agentCapabilities.supportsImportFromDefaultAuth {
+                    ActionPillButton(title: "Import Auth", symbol: "square.and.arrow.down") {
+                        viewModel.importCurrentAuth(into: account.name)
+                    }
+                    .disabled(isAccountActionRunning)
                 }
-                .disabled(isAccountActionRunning)
             }
 
             if let hint = account.connectionHint {
@@ -438,5 +461,4 @@ extension SettingsContentView {
             }
         }
     }
-
 }

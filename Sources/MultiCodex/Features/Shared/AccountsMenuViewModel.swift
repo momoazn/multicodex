@@ -14,9 +14,10 @@ final class AccountsMenuViewModel: ObservableObject {
     @Published var accountActionMessage: String?
     @Published var accountActionError: String?
     @Published var runtimeProbeSummary: String?
-    @Published var isCodexRuntimeAvailable = false
+    @Published var isRuntimeAvailable = false
     @Published var focusedAccountName: String?
-    @Published var customCodexPath: String
+    @Published var selectedAgent: AgentKind
+    @Published var customRuntimePath: String
     @Published var resetDisplayMode: ResetDisplayMode
     @Published var selectedSettingsSection: SettingsSection
     @Published var selectedSettingsAccountName: String?
@@ -27,8 +28,10 @@ final class AccountsMenuViewModel: ObservableObject {
     @Published var accountSwitchingStrategy: AccountSwitchingStrategy
     @Published var autoSwitchNotificationsEnabled: Bool
     @Published var limitsCacheTTLSeconds: Int
+    @Published var pendingAccountRemovalRequest: PendingAccountRemovalRequest?
 
-    let accountService: any CodexAccountServicing
+    private let agentRegistry: CodingAgentRegistry
+    var accountService: any CodingAgentServicing
     let fileManager: FileManager
     private let autoSwitchNotifierFactory: () -> any AutoSwitchNotificationSending
     var preferences: AppPreferencesStore
@@ -43,19 +46,68 @@ final class AccountsMenuViewModel: ObservableObject {
     lazy var settingsController = AccountsSettingsController(viewModel: self)
     lazy var accountManagement = AccountManagementController(viewModel: self)
 
-    init(
-        accountService: any CodexAccountServicing = CodexAccountService(),
+    convenience init(
+        accountService: any CodingAgentServicing,
         fileManager: FileManager = .default,
         autoSwitchNotifier: @escaping () -> any AutoSwitchNotificationSending = { AutoSwitchNotificationCenter.shared },
         preferences: AppPreferencesStore = AppPreferencesStore(),
         startImmediately: Bool = true
     ) {
-        self.accountService = accountService
+        let registryServices: [any CodingAgentServicing]
+        if accountService.agentKind == .codex {
+            registryServices = [accountService, PiAgentService()]
+        } else {
+            registryServices = [CodexAccountService(), accountService]
+        }
+        self.init(
+            agentRegistry: CodingAgentRegistry(services: registryServices),
+            fileManager: fileManager,
+            autoSwitchNotifier: autoSwitchNotifier,
+            preferences: preferences,
+            startImmediately: startImmediately
+        )
+    }
+
+    convenience init(
+        codexService: any CodingAgentServicing = CodexAccountService(),
+        piService: any CodingAgentServicing = PiAgentService(),
+        fileManager: FileManager = .default,
+        autoSwitchNotifier: @escaping () -> any AutoSwitchNotificationSending = { AutoSwitchNotificationCenter.shared },
+        preferences: AppPreferencesStore = AppPreferencesStore(),
+        startImmediately: Bool = true
+    ) {
+        self.init(
+            agentRegistry: CodingAgentRegistry(services: [codexService, piService]),
+            fileManager: fileManager,
+            autoSwitchNotifier: autoSwitchNotifier,
+            preferences: preferences,
+            startImmediately: startImmediately
+        )
+    }
+
+    init(
+        agentRegistry: CodingAgentRegistry,
+        fileManager: FileManager = .default,
+        autoSwitchNotifier: @escaping () -> any AutoSwitchNotificationSending = { AutoSwitchNotificationCenter.shared },
+        preferences: AppPreferencesStore = AppPreferencesStore(),
+        startImmediately: Bool = true
+    ) {
+        self.agentRegistry = agentRegistry
         self.fileManager = fileManager
         autoSwitchNotifierFactory = autoSwitchNotifier
         self.preferences = preferences
 
-        customCodexPath = preferences.customCodexPath
+        let preferredAgent = preferences.selectedAgent
+        let initialAgent = agentRegistry.service(for: preferredAgent)?.agentKind
+            ?? agentRegistry.supportedAgents.first
+            ?? .codex
+        selectedAgent = initialAgent
+        guard let service = agentRegistry.service(for: initialAgent) else {
+            fatalError("No coding agent service registered for \(initialAgent.rawValue)")
+        }
+        accountService = service
+
+        customRuntimePath = preferences.runtimePath(for: initialAgent)
         resetDisplayMode = preferences.resetDisplayMode
         selectedSettingsSection = preferences.selectedSettingsSection
         selectedSettingsAccountName = preferences.selectedSettingsAccountName
@@ -69,11 +121,11 @@ final class AccountsMenuViewModel: ObservableObject {
         limitsCacheTTLSeconds = CodexAccountService.normalizedLimitsCacheTTLSeconds(
             persistedTTL > 0 ? persistedTTL : CodexAccountService.defaultLimitsCacheTTLSeconds
         )
+        pendingAccountRemovalRequest = nil
         if !isAdvancedSettingsVisible, selectedSettingsSection == .advanced {
             selectedSettingsSection = .dashboard
         }
-        self.accountService.customCodexPath = customCodexPath.isEmpty ? nil : customCodexPath
-        self.accountService.limitsCacheTTLSeconds = limitsCacheTTLSeconds
+        applyPreferencesToCurrentService()
         if autoSwitchNotificationsEnabled {
             self.autoSwitchNotifier.requestAuthorizationIfNeeded()
         }
@@ -99,6 +151,14 @@ final class AccountsMenuViewModel: ObservableObject {
         refreshLoopTask?.cancel()
     }
 
+    var agentCapabilities: AgentCapabilities { accountService.capabilities }
+    var currentAgentTitle: String { selectedAgent.title }
+    var currentRuntimeName: String { selectedAgent.runtimeDisplayName }
+    var currentAccountNounSingular: String { selectedAgent.accountNounSingular }
+    var currentAccountNounPlural: String { selectedAgent.accountNounPlural }
+    var supportsUsage: Bool { agentCapabilities.supportsUsage }
+    var supportsAutoSwitching: Bool { agentCapabilities.supportsAutoSwitching }
+
     var currentAccount: AccountUsage? {
         accounts.first(where: { $0.isCurrent })
     }
@@ -108,7 +168,7 @@ final class AccountsMenuViewModel: ObservableObject {
             return accounts.isEmpty ? "mcx" : "mcx ?"
         }
 
-        if let percent = current.primaryPercentText {
+        if supportsUsage, let percent = current.primaryPercentText {
             return "mcx \(percent)"
         }
 
@@ -118,6 +178,10 @@ final class AccountsMenuViewModel: ObservableObject {
     var menuBarSymbol: String {
         if lastRefreshError != nil {
             return "exclamationmark.triangle.fill"
+        }
+
+        guard supportsUsage else {
+            return currentAccount == nil ? "person.2.circle" : "terminal"
         }
 
         switch UsageLevel.from(usedPercent: currentAccount?.usage.fiveHour.usedPercent) {
@@ -131,11 +195,11 @@ final class AccountsMenuViewModel: ObservableObject {
     }
 
     var currentFiveHourFraction: Double {
-        currentAccount?.usage.fiveHour.normalizedFraction ?? 0
+        supportsUsage ? (currentAccount?.usage.fiveHour.normalizedFraction ?? 0) : 0
     }
 
     var currentWeeklyFraction: Double {
-        currentAccount?.usage.weekly.normalizedFraction ?? 0
+        supportsUsage ? (currentAccount?.usage.weekly.normalizedFraction ?? 0) : 0
     }
 
     var lastUpdatedLabel: String {
@@ -169,7 +233,7 @@ final class AccountsMenuViewModel: ObservableObject {
     }
 
     var onboardingState: OnboardingState {
-        if !isCodexRuntimeAvailable {
+        if !isRuntimeAvailable {
             return OnboardingState(step: .runtime)
         }
         if accounts.isEmpty {
@@ -183,7 +247,8 @@ final class AccountsMenuViewModel: ObservableObject {
 
     var prioritizedMenuAlert: MenuAlertState? {
         MenuAlertPolicy.prioritizedAlert(
-            isRuntimeAvailable: isCodexRuntimeAvailable,
+            agent: selectedAgent,
+            isRuntimeAvailable: isRuntimeAvailable,
             runtimeSummary: runtimeProbeSummary,
             lastRefreshError: lastRefreshError,
             accountsNeedingLogin: accountsNeedingLogin
@@ -277,26 +342,24 @@ final class AccountsMenuViewModel: ObservableObject {
     }
 
     func selectSettingsAccount(named name: String?) { settingsController.selectSettingsAccount(named: name) }
-
     func setAccountSearchQuery(_ query: String) { settingsController.setAccountSearchQuery(query) }
-
     func syncSelectedSettingsAccount() { settingsController.syncSelectedSettingsAccount() }
-
     func setAdvancedSettingsVisible(_ isVisible: Bool) { settingsController.setAdvancedSettingsVisible(isVisible) }
-
     func setMenuDensity(_ density: MenuDensity) { settingsController.setMenuDensity(density) }
-
     func setUsageBarStyle(_ style: UsageBarStyle) { settingsController.setUsageBarStyle(style) }
-
     func setAccountSwitchingStrategy(_ strategy: AccountSwitchingStrategy) { settingsController.setAccountSwitchingStrategy(strategy) }
-
     func setAutoSwitchNotificationsEnabled(_ isEnabled: Bool) { settingsController.setAutoSwitchNotificationsEnabled(isEnabled) }
+    func setLimitsCacheTTLSeconds(_ seconds: Int) { settingsController.setLimitsCacheTTLSeconds(seconds) }
+    func setResetDisplayMode(_ mode: ResetDisplayMode) { settingsController.setResetDisplayMode(mode) }
+    func updateCustomRuntimePath(_ value: String) { settingsController.updateCustomRuntimePath(value) }
+    func clearCustomRuntimePath() { settingsController.clearCustomRuntimePath() }
+    func chooseCustomRuntimePath() { settingsController.chooseCustomRuntimePath() }
+    func selectAgent(_ agent: AgentKind) { settingsController.selectAgent(agent) }
+
 
     var shouldPreferLiveRefreshForAutoSwitching: Bool {
-        accountSwitchingStrategy != .manual
+        supportsAutoSwitching && accountSwitchingStrategy != .manual
     }
-
-    func setLimitsCacheTTLSeconds(_ seconds: Int) { settingsController.setLimitsCacheTTLSeconds(seconds) }
 
     func progressValue(for metric: UsageMetric) -> Double {
         guard let usedPercent = metric.usedPercent else {
@@ -315,29 +378,20 @@ final class AccountsMenuViewModel: ObservableObject {
         focusedAccountName = nil
     }
 
-    func updateCustomCodexPath(_ value: String) { settingsController.updateCustomCodexPath(value) }
-
-    func clearCustomCodexPath() { settingsController.clearCustomCodexPath() }
-
-    func chooseCustomCodexPath() { settingsController.chooseCustomCodexPath() }
-
+    func beginAccountRemoval(named name: String, deleteData: Bool) { accountManagement.beginAccountRemoval(named: name, deleteData: deleteData) }
+    func cancelPendingAccountRemoval() { accountManagement.cancelPendingAccountRemoval() }
+    func executePendingAccountRemoval(confirming typedName: String?) { accountManagement.executePendingAccountRemoval(confirming: typedName) }
     func switchToAccount(named name: String) { accountManagement.switchToAccount(named: name) }
-
     func startNewAccountLogin() { accountManagement.startNewAccountLogin() }
-
     func renameAccount(from oldName: String, to rawNewName: String) { accountManagement.renameAccount(from: oldName, to: rawNewName) }
-
     func removeAccount(named name: String, deleteData: Bool) { accountManagement.removeAccount(named: name, deleteData: deleteData) }
-
     func importCurrentAuth(into name: String) { accountManagement.importCurrentAuth(into: name) }
-
     func checkLoginStatus(for name: String) { accountManagement.checkLoginStatus(for: name) }
-
     func startLoginFlow(accountName: String, createIfNeeded: Bool) { accountActions.startLoginFlow(accountName: accountName, createIfNeeded: createIfNeeded) }
-
     func openLoginInTerminal(for name: String) { accountManagement.openLoginInTerminal(for: name) }
-
     func clearAccountActionFeedback() { accountManagement.clearAccountActionFeedback() }
+    func sendTestAutoSwitchNotification() { accountManagement.sendTestAutoSwitchNotification() }
+    func openMulticodexConfigDirectory() { accountManagement.openMulticodexConfigDirectory() }
 
     func runSwitchAction(
         named name: String,
@@ -383,11 +437,30 @@ final class AccountsMenuViewModel: ObservableObject {
         }
     }
 
-    func sendTestAutoSwitchNotification() { accountManagement.sendTestAutoSwitchNotification() }
+    func switchAgentIfNeeded(_ agent: AgentKind) {
+        guard agent != selectedAgent, let newService = agentRegistry.service(for: agent) else {
+            return
+        }
+        selectedAgent = agent
+        preferences.selectedAgent = agent
+        accountService = newService
+        applyPreferencesToCurrentService()
+        accounts = []
+        lastRefreshError = nil
+        refreshWarningMessage = nil
+        cliResolutionHint = nil
+        runtimeProbeSummary = nil
+        focusedAccountName = nil
+        selectedSettingsAccountName = nil
+        preferences.selectedSettingsAccountName = nil
+        pendingInteractiveLoginSession = nil
+        refreshController.refreshRuntimeProbe()
+        refreshController.triggerRefresh(refreshLive: false)
+    }
 
-    func setResetDisplayMode(_ mode: ResetDisplayMode) { settingsController.setResetDisplayMode(mode) }
-
-    func openMulticodexConfigDirectory() { accountManagement.openMulticodexConfigDirectory() }
-
-
+    private func applyPreferencesToCurrentService() {
+        customRuntimePath = preferences.runtimePath(for: selectedAgent)
+        accountService.customRuntimePath = customRuntimePath.isEmpty ? nil : customRuntimePath
+        accountService.limitsCacheTTLSeconds = limitsCacheTTLSeconds
+    }
 }

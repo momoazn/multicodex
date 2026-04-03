@@ -2,6 +2,7 @@ import Foundation
 
 enum MenuAlertPolicy {
     static func prioritizedAlert(
+        agent: AgentKind,
         isRuntimeAvailable: Bool,
         runtimeSummary: String?,
         lastRefreshError: String?,
@@ -10,7 +11,7 @@ enum MenuAlertPolicy {
         if !isRuntimeAvailable {
             return MenuAlertState(
                 severity: .runtimeUnavailable,
-                title: "Codex runtime unavailable",
+                title: "\(agent.title) runtime unavailable",
                 message: runtimeSummary ?? "Set the runtime path in Settings.",
                 actionTitle: "Open Runtime Settings",
                 action: .openRuntimeSettings

@@ -7,18 +7,46 @@ struct AppPreferencesStore {
         self.defaults = defaults
     }
 
-    var customCodexPath: String {
+    var selectedAgent: AgentKind {
         get {
-            defaults.string(forKey: Keys.customCodexPath) ?? ""
+            let raw = defaults.string(forKey: Keys.selectedAgent) ?? ""
+            return AgentKind(rawValue: raw) ?? .codex
         }
         set {
-            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty {
+            defaults.set(newValue.rawValue, forKey: Keys.selectedAgent)
+        }
+    }
+
+    func runtimePath(for agent: AgentKind) -> String {
+        if let persisted = defaults.string(forKey: runtimePathKey(for: agent)), !persisted.isEmpty {
+            return persisted
+        }
+        if agent == .codex {
+            return defaults.string(forKey: Keys.customCodexPath) ?? ""
+        }
+        return ""
+    }
+
+    func setRuntimePath(_ newValue: String, for agent: AgentKind) {
+        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = runtimePathKey(for: agent)
+        if trimmed.isEmpty {
+            defaults.removeObject(forKey: key)
+            if agent == .codex {
                 defaults.removeObject(forKey: Keys.customCodexPath)
-                return
             }
+            return
+        }
+        defaults.set(trimmed, forKey: key)
+        if agent == .codex {
             defaults.set(trimmed, forKey: Keys.customCodexPath)
         }
+    }
+
+    // Backward-compatible convenience used by existing tests and callers during migration.
+    var customCodexPath: String {
+        get { runtimePath(for: .codex) }
+        set { setRuntimePath(newValue, for: .codex) }
     }
 
     var resetDisplayMode: ResetDisplayMode {
@@ -54,7 +82,6 @@ struct AppPreferencesStore {
         }
     }
 
-    
     var menuDensity: MenuDensity {
         get {
             let raw = defaults.string(forKey: Keys.menuDensity) ?? ""
@@ -99,7 +126,13 @@ struct AppPreferencesStore {
         }
     }
 
+    private func runtimePathKey(for agent: AgentKind) -> String {
+        "\(Keys.runtimePathPrefix).\(agent.rawValue)"
+    }
+
     enum Keys {
+        static let selectedAgent = "multicodexMenu.selectedAgent"
+        static let runtimePathPrefix = "multicodexMenu.runtimePath"
         static let customCodexPath = "multicodexMenu.customCodexPath"
         static let resetDisplayMode = "multicodexMenu.resetDisplayMode"
         static let selectedSettingsSection = "multicodexMenu.selectedSettingsSection"

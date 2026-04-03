@@ -78,7 +78,7 @@ final class AccountsSettingsController {
         }
         viewModel.accountSwitchingStrategy = strategy
         viewModel.preferences.accountSwitchingStrategy = strategy
-        if strategy != .manual {
+        if strategy != .manual, viewModel.supportsAutoSwitching {
             viewModel.refreshLive()
         }
     }
@@ -115,29 +115,33 @@ final class AccountsSettingsController {
         viewModel.preferences.resetDisplayMode = mode
     }
 
-    func updateCustomCodexPath(_ value: String) {
+    func updateCustomRuntimePath(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        viewModel.customCodexPath = trimmed
-        viewModel.preferences.customCodexPath = trimmed
-        viewModel.accountService.customCodexPath = trimmed.isEmpty ? nil : trimmed
+        viewModel.customRuntimePath = trimmed
+        viewModel.preferences.setRuntimePath(trimmed, for: viewModel.selectedAgent)
+        viewModel.accountService.customRuntimePath = trimmed.isEmpty ? nil : trimmed
         viewModel.refreshController.refreshRuntimeProbe()
         viewModel.refresh()
     }
 
-    func clearCustomCodexPath() {
-        updateCustomCodexPath("")
+    func clearCustomRuntimePath() {
+        updateCustomRuntimePath("")
     }
 
-    func chooseCustomCodexPath() {
+    func chooseCustomRuntimePath() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.prompt = "Use"
-        panel.message = "Choose the codex executable"
+        panel.message = "Choose the \(viewModel.currentRuntimeName) executable"
 
         if panel.runModal() == .OK, let path = panel.url?.path {
-            updateCustomCodexPath(path)
+            updateCustomRuntimePath(path)
         }
+    }
+
+    func selectAgent(_ agent: AgentKind) {
+        viewModel.switchAgentIfNeeded(agent)
     }
 }

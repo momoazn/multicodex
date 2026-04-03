@@ -61,13 +61,22 @@ final class AccountManagementController {
     }
 
     func importCurrentAuth(into name: String) {
+        guard viewModel.agentCapabilities.supportsImportFromDefaultAuth else {
+            viewModel.accountActions.setAccountFeedback(message: nil, error: "\(viewModel.currentAgentTitle) does not support importing auth from the default install.")
+            return
+        }
         accountActions.runAccountAction(for: name) {
             _ = try await self.viewModel.accountService.importDefaultAuth(into: name)
-            return AccountActionOutcome.success("Imported current ~/.codex/auth.json into \(name).")
+            let source = self.viewModel.selectedAgent == .codex ? "~/.codex/auth.json" : "~/.pi/agent/auth.json"
+            return AccountActionOutcome.success("Imported current \(source) into \(name).")
         }
     }
 
     func checkLoginStatus(for name: String) {
+        guard viewModel.agentCapabilities.supportsStatusCheck else {
+            viewModel.accountActions.setAccountFeedback(message: nil, error: "\(viewModel.currentAgentTitle) does not expose login status checks.")
+            return
+        }
         accountActions.runAccountAction(for: name) {
             let status = try await self.viewModel.accountService.fetchStatus(name: name)
             let summary = status.output.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -91,6 +100,10 @@ final class AccountManagementController {
     func sendTestAutoSwitchNotification() {
         guard viewModel.autoSwitchNotificationsEnabled else {
             viewModel.accountActions.setAccountFeedback(message: nil, error: "Enable auto-switch notifications to send a test.")
+            return
+        }
+        guard viewModel.supportsAutoSwitching else {
+            viewModel.accountActions.setAccountFeedback(message: nil, error: "\(viewModel.currentAgentTitle) does not support automatic account switching.")
             return
         }
 

@@ -61,19 +61,25 @@ extension AccountsMenuContentView {
                 )
             }
 
-            HStack(spacing: max(6, layout.sectionSpacing - 2)) {
-                AccountUsageMetricCard(
-                    title: "5h",
-                    metric: account.usage.fiveHour,
-                    resetDisplayMode: viewModel.resetDisplayMode,
-                    progressValue: viewModel.progressValue(for: account.usage.fiveHour)
-                )
-                AccountUsageMetricCard(
-                    title: "weekly",
-                    metric: account.usage.weekly,
-                    resetDisplayMode: viewModel.resetDisplayMode,
-                    progressValue: viewModel.progressValue(for: account.usage.weekly)
-                )
+            if viewModel.supportsUsage {
+                HStack(spacing: max(6, layout.sectionSpacing - 2)) {
+                    AccountUsageMetricCard(
+                        title: "5h",
+                        metric: account.usage.fiveHour,
+                        resetDisplayMode: viewModel.resetDisplayMode,
+                        progressValue: viewModel.progressValue(for: account.usage.fiveHour)
+                    )
+                    AccountUsageMetricCard(
+                        title: "weekly",
+                        metric: account.usage.weekly,
+                        resetDisplayMode: viewModel.resetDisplayMode,
+                        progressValue: viewModel.progressValue(for: account.usage.weekly)
+                    )
+                }
+            } else {
+                Text("Usage metrics aren't available for \(viewModel.currentAgentTitle).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(layout.cardPadding)
@@ -90,7 +96,7 @@ extension AccountsMenuContentView {
     var quickAccountsCard: some View {
         VStack(alignment: .leading, spacing: max(6, layout.sectionSpacing - 2)) {
             HStack {
-                Text("Accounts")
+                Text(viewModel.currentAccountNounPlural.capitalized)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -113,6 +119,7 @@ extension AccountsMenuContentView {
                         isBusy: isActionBusy,
                         isSwitching: viewModel.switchingAccountName == row.name,
                         isAuthRunning: viewModel.accountActionInFlightName == row.name,
+                        showsUsage: viewModel.supportsUsage,
                         onSelect: { selectedAccountName = row.name },
                         onPrimaryAction: { performPrimaryAction(for: row) },
                         onToggleExpanded: { toggleExpanded(row.name) }
@@ -146,18 +153,18 @@ extension AccountsMenuContentView {
                     .foregroundStyle(runtimeStatus.color)
                 Text(runtimeStatus.text)
                     .font(.caption2)
-                    .foregroundStyle(viewModel.isCodexRuntimeAvailable ? .secondary : runtimeStatus.color)
+                    .foregroundStyle(viewModel.isRuntimeAvailable ? .secondary : runtimeStatus.color)
                     .lineLimit(2)
             }
 
             HStack(spacing: 8) {
                 ActionPillButton(
-                    title: viewModel.isCodexRuntimeAvailable ? "Login First Account" : "Fix Runtime",
-                    symbol: viewModel.isCodexRuntimeAvailable ? "person.crop.circle.badge.plus" : "terminal",
+                    title: viewModel.isRuntimeAvailable ? "Login First \(viewModel.currentAccountNounSingular.capitalized)" : "Fix Runtime",
+                    symbol: viewModel.isRuntimeAvailable ? "person.crop.circle.badge.plus" : "terminal",
                     role: .primary,
                     isDisabled: isActionBusy
                 ) {
-                    if viewModel.isCodexRuntimeAvailable {
+                    if viewModel.isRuntimeAvailable {
                         viewModel.startNewAccountLogin()
                     } else {
                         viewModel.selectSettingsSection(.runtime)
@@ -224,7 +231,7 @@ extension AccountsMenuContentView {
     var onboardingCopy: String {
         switch viewModel.onboardingState.step {
         case .runtime:
-            return "Confirm the codex runtime first, then connect your first account."
+            return "Confirm the \(viewModel.currentRuntimeName) runtime first, then connect your first \(viewModel.currentAccountNounSingular)."
         case .login:
             return "Login once and MultiCodex will start showing usage cards automatically."
         case .verify:
@@ -289,7 +296,8 @@ extension AccountsMenuContentView {
     var runtimeStatus: RuntimeStatusPresentation {
         AccountPresentation.runtimeStatus(
             summary: viewModel.runtimeProbeSummary,
-            isAvailable: viewModel.isCodexRuntimeAvailable
+            isAvailable: viewModel.isRuntimeAvailable,
+            agent: viewModel.selectedAgent
         )
     }
 
