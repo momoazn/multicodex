@@ -93,15 +93,7 @@ extension SettingsContentView {
             VStack(alignment: .leading, spacing: 10) {
                 settingsSectionIntro(
                     title: "First-Run Setup",
-<<<<<<< HEAD
-                    description: viewModel.onboardingState.isComplete
-                        ? "Setup is complete. Reset the wizard to walk through the steps again."
-                        : "Finish the initial setup."
-||||||| parent of 8841916 (feat: add multi-agent scaffold and pi support)
-                    description: "Finish the initial setup."
-=======
                     description: "Finish the initial setup for \(viewModel.currentAgentTitle)."
->>>>>>> 8841916 (feat: add multi-agent scaffold and pi support)
                 )
 
                 VStack(alignment: .leading, spacing: 6) {

@@ -120,4 +120,16 @@ struct SettingsContentView: View {
         }
         .scrollIndicators(.hidden)
     }
+
+    var removalSheetBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.pendingAccountRemovalRequest != nil },
+            set: { isPresented in
+                if !isPresented {
+                    deleteConfirmationName = ""
+                    viewModel.cancelPendingAccountRemoval()
+                }
+            }
+        )
+    }
 }
