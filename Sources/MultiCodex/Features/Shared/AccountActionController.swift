@@ -29,12 +29,13 @@ final class AccountActionController {
         guard message != nil else {
             return
         }
+        let viewModel = viewModel
         viewModel.feedbackAutoClearTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))
             if Task.isCancelled {
                 return
             }
-            self.viewModel.accountActionMessage = nil
+            viewModel.accountActionMessage = nil
         }
     }
 
@@ -45,23 +46,24 @@ final class AccountActionController {
             return
         }
 
+        let viewModel = viewModel
         Task {
-            self.viewModel.accountActionInFlightName = accountName
-            self.viewModel.focusedAccountName = accountName
-            self.viewModel.feedbackAutoClearTask?.cancel()
-            self.viewModel.feedbackAutoClearTask = nil
-            self.viewModel.accountActionMessage = "Opening browser login for \(accountName)..."
-            self.viewModel.accountActionError = nil
+            viewModel.accountActionInFlightName = accountName
+            viewModel.focusedAccountName = accountName
+            viewModel.feedbackAutoClearTask?.cancel()
+            viewModel.feedbackAutoClearTask = nil
+            viewModel.accountActionMessage = "Opening browser login for \(accountName)..."
+            viewModel.accountActionError = nil
 
             defer {
-                self.viewModel.accountActionInFlightName = nil
+                viewModel.accountActionInFlightName = nil
             }
 
             do {
                 let session = try self.makeInteractiveLoginSession(accountName: accountName, createIfNeeded: createIfNeeded)
-                self.viewModel.pendingInteractiveLoginSession = nil
-                if self.viewModel.agentCapabilities.supportsInAppLogin {
-                    _ = try await self.viewModel.accountService.loginInApp(
+                viewModel.pendingInteractiveLoginSession = nil
+                if viewModel.agentCapabilities.supportsInAppLogin {
+                    _ = try await viewModel.accountService.loginInApp(
                         account: accountName,
                         createIfNeeded: createIfNeeded,
                         loginHome: session.loginSandboxHome
@@ -117,10 +119,11 @@ final class AccountActionController {
             return
         }
 
+        let viewModel = viewModel
         Task {
-            self.viewModel.accountActionInFlightName = session.accountName
-            self.viewModel.focusedAccountName = session.accountName
-            defer { self.viewModel.accountActionInFlightName = nil }
+            viewModel.accountActionInFlightName = session.accountName
+            viewModel.focusedAccountName = session.accountName
+            defer { viewModel.accountActionInFlightName = nil }
 
             await self.completeInteractiveLogin(session: session, preserveFailedSession: true)
         }
@@ -198,9 +201,10 @@ final class AccountActionController {
             return
         }
 
+        let viewModel = viewModel
         Task {
-            self.viewModel.accountActionInFlightName = accountName
-            defer { self.viewModel.accountActionInFlightName = nil }
+            viewModel.accountActionInFlightName = accountName
+            defer { viewModel.accountActionInFlightName = nil }
 
             do {
                 switch try await operation() {

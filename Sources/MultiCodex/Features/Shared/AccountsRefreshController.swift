@@ -81,8 +81,9 @@ final class AccountsRefreshController {
     }
 
     func triggerRefresh(refreshLive: Bool) {
+        let viewModel = viewModel
         Task {
-            await performRefresh(refreshLive: refreshLive)
+            await viewModel.refreshController.performRefresh(refreshLive: refreshLive)
         }
     }
 
@@ -110,8 +111,9 @@ final class AccountsRefreshController {
                     )
                 )
             }
+            let viewModel = self.viewModel
             Task { @MainActor in
-                await self.performRefresh(refreshLive: false, allowAutoSwitch: false)
+                await viewModel.refreshController.performRefresh(refreshLive: false, allowAutoSwitch: false)
             }
         }
     }
