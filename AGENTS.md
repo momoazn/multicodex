@@ -202,7 +202,7 @@ All async account work goes through controllers:
 
 ## Important Notes
 
-- **Unsigned app**: Users must run `sudo xattr -dr com.apple.quarantine /Applications/MultiCodex.app`
+- **Unsigned app**: Users must run `xattr -dr com.apple.quarantine /Applications/MultiCodex.app`
 - **Runtime requirement**: `codex` CLI must be in PATH (or set custom path in Settings > System)
 - **No JS runtime**: Pure Swift implementation
 - **Menu bar only**: Uses `MenuBarExtra`, no dock icon in normal operation
