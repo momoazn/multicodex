@@ -3,12 +3,23 @@ import SwiftUI
 @main
 struct MultiCodexApp: App {
     @NSApplicationDelegateAdaptor(MultiCodexAppDelegate.self) private var appDelegate
-    @StateObject private var viewModel = AccountsMenuViewModel()
+    @StateObject private var viewModel = MultiCodexApp.makeViewModel()
 
     init() {
         // A codex child process can exit before we write its stdin. Report that as a
         // write error instead of letting SIGPIPE kill the app.
         signal(SIGPIPE, SIG_IGN)
+    }
+
+    @MainActor
+    private static func makeViewModel() -> AccountsMenuViewModel {
+        guard DemoMode.isEnabled else { return AccountsMenuViewModel() }
+        let viewModel = AccountsMenuViewModel(
+            accountService: DemoAccountService(),
+            preferences: DemoMode.makePreferences()
+        )
+        DemoCapture.viewModel = viewModel
+        return viewModel
     }
 
     var body: some Scene {
@@ -35,12 +46,13 @@ struct MultiCodexApp: App {
         WindowGroup("Settings", id: "settings") {
             SettingsContentView(viewModel: viewModel)
                 .frame(
-                    minWidth: 560,
-                    idealWidth: 600,
-                    minHeight: 400,
-                    idealHeight: 440
+                    minWidth: 680,
+                    idealWidth: 820,
+                    minHeight: 480,
+                    idealHeight: 600
                 )
         }
+        .defaultSize(width: 820, height: 600)
 
         WindowGroup("Batch Login Tracker", id: "batch-login") {
             SequentialLoginTrackerView(viewModel: viewModel)

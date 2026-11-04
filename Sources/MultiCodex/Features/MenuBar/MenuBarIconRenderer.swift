@@ -11,44 +11,60 @@ enum MenuBarIconRenderer {
         weeklyUsedPercent: Double?,
         isStale: Bool
     ) -> NSImage {
-        let image = NSImage(size: size)
-        image.lockFocus()
-
-        guard let context = NSGraphicsContext.current?.cgContext else {
-            image.unlockFocus()
-            return fallbackIcon()
-        }
-
-        context.setShouldAntialias(true)
-        context.setAllowsAntialiasing(true)
-
         let alpha: CGFloat = isStale ? 0.48 : 1
         let fiveHour = normalizedProgress(fiveHourProgress)
         let weekly = normalizedProgress(weeklyProgress)
+        let fiveHourColor = color(for: fiveHourUsedPercent)
+        let weeklyColor = color(for: weeklyUsedPercent)
 
-        drawUsageBar(
-            in: CGRect(x: 2.5, y: 10.5, width: 13, height: 3.5),
-            progress: fiveHour,
-            accent: color(for: fiveHourUsedPercent),
-            alpha: alpha,
-            context: context
-        )
-        drawUsageBar(
-            in: CGRect(x: 2.5, y: 4.5, width: 13, height: 3.5),
-            progress: weekly,
-            accent: color(for: weeklyUsedPercent),
-            alpha: alpha,
-            context: context
-        )
+        // The handler runs at draw time, so `labelColor` follows the current menu bar
+        // appearance (light, dark, or tinted wallpaper) instead of the one at creation.
+        let image = NSImage(size: size, flipped: false) { _ in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.setShouldAntialias(true)
 
-        if isStale {
-            context.setFillColor(NSColor.systemOrange.withAlphaComponent(0.95).cgColor)
-            context.fillEllipse(in: CGRect(x: 13, y: 13, width: 3, height: 3))
+            drawUsageBar(
+                in: CGRect(x: 2.5, y: 10.5, width: 13, height: 3.5),
+                progress: fiveHour,
+                accent: fiveHourColor,
+                alpha: alpha,
+                context: context
+            )
+            drawUsageBar(
+                in: CGRect(x: 2.5, y: 4.5, width: 13, height: 3.5),
+                progress: weekly,
+                accent: weeklyColor,
+                alpha: alpha,
+                context: context
+            )
+
+            if isStale {
+                context.setFillColor(NSColor.systemOrange.withAlphaComponent(0.95).cgColor)
+                context.fillEllipse(in: CGRect(x: 13, y: 13, width: 3, height: 3))
+            }
+            return true
         }
-
-        image.unlockFocus()
         image.isTemplate = false
+        image.accessibilityDescription = accessibilityDescription(
+            fiveHourUsedPercent: fiveHourUsedPercent,
+            weeklyUsedPercent: weeklyUsedPercent,
+            isStale: isStale
+        )
         return image
+    }
+
+    static func accessibilityDescription(
+        fiveHourUsedPercent: Double?,
+        weeklyUsedPercent: Double?,
+        isStale: Bool
+    ) -> String {
+        func part(_ label: String, _ percent: Double?) -> String {
+            guard let percent else { return "\(label) unknown" }
+            return "\(label) \(Int(percent.rounded()))% used"
+        }
+        var text = "MultiCodex: \(part("5-hour", fiveHourUsedPercent)), \(part("weekly", weeklyUsedPercent))"
+        if isStale { text += ", needs attention" }
+        return text
     }
 
     private static func drawUsageBar(
@@ -83,19 +99,11 @@ enum MenuBarIconRenderer {
     }
 
     private static func color(for percent: Double?) -> NSColor {
-        guard let percent else {
-            return NSColor.systemGray
+        guard percent != nil else { return NSColor.systemGray }
+        switch UsageLevel.from(usedPercent: percent) {
+        case .critical: return NSColor.systemRed
+        case .warning: return NSColor.systemOrange
+        case .normal: return NSColor.systemPurple
         }
-        if percent >= 95 { return NSColor.systemRed }
-        if percent >= 80 { return NSColor.systemOrange }
-        return NSColor.systemPurple
-    }
-
-    private static func fallbackIcon() -> NSImage {
-        let image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "MultiCodex")
-            ?? NSImage(size: size)
-        image.size = size
-        image.isTemplate = true
-        return image
     }
 }

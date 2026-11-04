@@ -22,7 +22,7 @@ enum MenuAlertPolicy {
                 severity: .refreshError,
                 title: "Refresh failed",
                 message: lastRefreshError,
-                actionTitle: "Refresh Live",
+                actionTitle: "Try Again",
                 action: .refreshLive
             )
         }
@@ -30,9 +30,9 @@ enum MenuAlertPolicy {
         if let accountNeedingLogin = accountsNeedingLogin.first {
             return MenuAlertState(
                 severity: .authRequired,
-                title: "Account needs login",
-                message: "\(accountNeedingLogin.name) requires authentication.",
-                actionTitle: "Re-login \(accountNeedingLogin.name)",
+                title: "\(accountNeedingLogin.name) needs login",
+                message: "Its session expired. Log in again to see usage and switch to it.",
+                actionTitle: "Log In",
                 action: .relogin(accountName: accountNeedingLogin.name)
             )
         }

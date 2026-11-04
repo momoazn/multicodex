@@ -8,24 +8,8 @@ extension SettingsContentView {
                 description: "Behavior and menu display settings.",
                 symbol: "slider.horizontal.3"
             ) {
-                VStack(alignment: .trailing, spacing: 6) {
-                    if viewModel.isRefreshing {
-                        settingsBadge(
-                            text: "Refreshing",
-                            symbol: "arrow.clockwise",
-                            color: DashboardTokens.accent
-                        )
-                    }
-                    settingsBadge(
-                        text: viewModel.currentAccount == nil ? "No Active Account" : "\(viewModel.currentAccount?.name ?? "") Active",
-                        symbol: viewModel.currentAccount == nil ? "person.crop.circle.badge.questionmark" : "checkmark.circle.fill",
-                        color: viewModel.currentAccount == nil ? DashboardTokens.statusOrange : DashboardTokens.statusGreen
-                    )
-                    settingsBadge(
-                        text: viewModel.accountsNeedingLogin.isEmpty ? "All Healthy" : "\(viewModel.accountsNeedingLogin.count) Need Login",
-                        symbol: viewModel.accountsNeedingLogin.isEmpty ? "shield.fill" : "exclamationmark.triangle.fill",
-                        color: viewModel.accountsNeedingLogin.isEmpty ? DashboardTokens.statusGreen : DashboardTokens.statusOrange
-                    )
+                if viewModel.isRefreshing {
+                    settingsBadge(text: "Refreshing", symbol: "arrow.clockwise", color: DashboardTokens.accent)
                 }
             }
 
@@ -41,18 +25,10 @@ extension SettingsContentView {
                         Spacer(minLength: 10)
 
                         HStack(spacing: 6) {
+                            // One button: the menu's refresh is live too, and a cache-only reload confused users.
                             ActionPillButton(
-                                title: "Refresh",
+                                title: "Refresh Now",
                                 symbol: "arrow.clockwise",
-                                role: .secondary,
-                                isDisabled: viewModel.isRefreshing
-                            ) {
-                                viewModel.refresh()
-                            }
-
-                            ActionPillButton(
-                                title: "Live Refresh",
-                                symbol: "bolt.horizontal.fill",
                                 role: .primary,
                                 isDisabled: viewModel.isRefreshing
                             ) {

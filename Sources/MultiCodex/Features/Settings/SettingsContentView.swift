@@ -31,6 +31,8 @@ struct SettingsContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .background(settingsBackground)
+        // The palette is dark-only; native controls must match it.
+        .preferredColorScheme(.dark)
         .onAppear {
             codexPathDraft = viewModel.customCodexPath
             syncRenameDrafts()
@@ -195,7 +197,14 @@ struct SettingsContentView: View {
     }
 
     private var dataPage: some View {
-        DataPane(viewModel: viewModel)
+        VStack(alignment: .leading, spacing: 16) {
+            settingsHero(
+                title: "Data",
+                description: "Back up, restore, and move your accounts.",
+                symbol: "externaldrive.fill"
+            )
+            DataPane(viewModel: viewModel)
+        }
     }
 
     private func selectedSectionSubtitle(for section: SettingsSection) -> String {

@@ -12,6 +12,17 @@ A macOS menu bar app that manages multiple Codex CLI accounts. It shows usage fo
 
 [Download](https://github.com/momoazn/multicodex/releases/latest) | [Report a bug](https://github.com/momoazn/multicodex/issues) | [Development guide](docs/DEVELOPMENT.md)
 
+<p align="center">
+  <img src="docs/screenshots/menu.png" alt="MultiCodex menu: current account usage and the list of other accounts" width="420">
+  <img src="docs/screenshots/menu-details.png" alt="MultiCodex menu with one account expanded to show 5-hour and weekly usage" width="420">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/settings-accounts.png" alt="MultiCodex Settings window, Accounts section" width="760">
+</p>
+
+<sub>Screenshots use demo mode with fake accounts. To make your own, see the "Screenshots" section in the development guide.</sub>
+
 ## The problem
 
 Codex limits usage per account in a 5-hour window and a weekly window. With more than one account, you must check each account by hand. You must also switch accounts by hand when one runs out.
@@ -84,7 +95,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for more detail.
 
 ## Tests
 
-170 XCTest tests in 25 files. They cover account identity, reconciliation, auth swap, usage merge, pace, export, and error recovery.
+172 XCTest tests in 25 files. They cover account identity, reconciliation, auth swap, usage merge, pace, export, and error recovery.
 
 ```bash
 just test    # run the tests

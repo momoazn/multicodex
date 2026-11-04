@@ -48,6 +48,7 @@ struct AccountsMenuContentView: View {
                     .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .preferredColorScheme(.dark)
         .onAppear {
             installKeyboardMonitor()
         }

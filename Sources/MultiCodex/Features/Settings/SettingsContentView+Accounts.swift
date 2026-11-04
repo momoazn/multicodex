@@ -34,7 +34,7 @@ extension SettingsContentView {
                         Spacer(minLength: 10)
 
                         ActionPillButton(
-                            title: "Login New Account",
+                            title: "Add Account",
                             symbol: "person.crop.circle.badge.plus",
                             role: .primary,
                             isDisabled: isLoginActionRunning
@@ -52,7 +52,12 @@ extension SettingsContentView {
                                 placeholder: "Count",
                                 text: sequentialLoginCountTextBinding
                             )
-                            .frame(width: 72)
+                            .frame(width: 56)
+                            .accessibilityLabel("Number of accounts")
+
+                            Text("accounts")
+                                .font(DashboardTokens.Font.metadata())
+                                .foregroundStyle(DashboardTokens.textSecondary)
 
                             ActionPillButton(
                                 title: "Start Batch Login",
@@ -160,16 +165,17 @@ extension SettingsContentView {
                             )
                         }
 
-                        HStack(alignment: .top, spacing: 10) {
-                            sortOptionColumn(title: "Sort by") {
-                                SettingsSegmentedPicker(
-                                    options: AccountSortCriterion.allCases,
-                                    titleForOption: { $0.title },
-                                    selection: accountSortCriterionBinding
-                                )
-                            }
-                            .frame(minWidth: 240, maxWidth: .infinity, alignment: .leading)
+                        // Two rows so the pickers never push the page wider than the window.
+                        sortOptionColumn(title: "Sort by") {
+                            SettingsSegmentedPicker(
+                                options: AccountSortCriterion.allCases,
+                                titleForOption: { $0.title },
+                                selection: accountSortCriterionBinding
+                            )
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
+                        HStack(alignment: .top, spacing: 10) {
                             if viewModel.accountSortCriterion != .name {
                                 sortOptionColumn(title: "Window") {
                                     SettingsSegmentedPicker(
@@ -178,7 +184,7 @@ extension SettingsContentView {
                                         selection: accountSortWindowBinding
                                     )
                                 }
-                                .frame(minWidth: 150, maxWidth: 180, alignment: .leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
 
                             sortOptionColumn(title: "Direction") {
@@ -188,7 +194,7 @@ extension SettingsContentView {
                                     selection: accountSortDirectionBinding
                                 )
                             }
-                            .frame(minWidth: 150, maxWidth: 180, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
                         settingsInfoRow(

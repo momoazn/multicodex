@@ -205,7 +205,7 @@ enum DashboardTokens {
         static func microLabel() -> SwiftUI.Font    { .system(size: 9, weight: .semibold) }
 
         // Icons / Decorative
-        static func chevron() -> SwiftUI.Font       { .system(size: 7, weight: .semibold) }
+        static func chevron() -> SwiftUI.Font       { .system(size: 9, weight: .semibold) }
 
         // Semantic aliases (keep existing call sites working)
         static func accountName() -> SwiftUI.Font   { bodySemibold() }

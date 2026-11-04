@@ -23,15 +23,6 @@ extension SettingsContentView {
                         symbol: "terminal"
                     )
 
-                    HStack(alignment: .top, spacing: 10) {
-                        settingsBadge(text: runtimeStatus.text, symbol: runtimeStatus.symbol, color: runtimeStatus.color)
-                        Spacer(minLength: 0)
-                    }
-
-                    Rectangle()
-                        .fill(DashboardTokens.cardBorder)
-                        .frame(height: 1)
-
                     VStack(alignment: .leading, spacing: 6) {
                         DashboardSectionHeader(title: "Executable")
                         Text("Set a custom `codex` path when auto-detection fails.")
@@ -63,9 +54,7 @@ extension SettingsContentView {
                         }
                     }
 
-                    if let probe = viewModel.runtimeProbeSummary, !probe.isEmpty {
-                        settingsInfoRow(symbol: "info.circle", text: probe, color: DashboardTokens.textTertiary)
-                    }
+                    settingsInfoRow(symbol: runtimeStatus.symbol, text: runtimeStatus.text, color: runtimeStatus.color)
                 }
             }
 
@@ -82,7 +71,7 @@ extension SettingsContentView {
                             viewModel.openMulticodexConfigDirectory()
                         }
 
-                        ActionPillButton(title: "Run Live Refresh", symbol: "bolt.horizontal.fill", role: .primary) {
+                        ActionPillButton(title: "Refresh Now", symbol: "bolt.horizontal.fill", role: .primary) {
                             viewModel.refreshLive()
                         }
                     }
@@ -102,7 +91,7 @@ extension SettingsContentView {
                     } else {
                         settingsInfoRow(
                             symbol: "arrow.clockwise",
-                            text: "Run Live Refresh to populate resolution notes.",
+                            text: "Refresh to see how the runtime was found.",
                             color: DashboardTokens.textTertiary
                         )
                     }

@@ -143,6 +143,24 @@ Tests live in `Tests/MultiCodexTests/` (~4.8k lines):
 - Lint: `swiftlint` (config in `.swiftlint.yml`)
 - Safe build: `scripts/swift-safe.sh` (handles PCH/cache errors)
 
+## Screenshots
+
+README screenshots come from demo mode. Demo mode uses fake accounts and never reads your real `~/.codex`.
+
+```bash
+swift build
+SANDBOX=$(mktemp -d)
+MULTICODEX_DEMO=1 \
+MULTICODEX_DEMO_CAPTURE=docs/screenshots \
+MULTICODEX_DEMO_APPEARANCE=dark \
+HOME="$SANDBOX" MULTICODEX_HOME="$SANDBOX/mc" \
+.build/debug/MultiCodex
+```
+
+The app writes `menu.png`, `menu-details.png`, and `settings-accounts.png`, then quits.
+The menu shots include a 56 px strip of desktop at the top. Crop it with `sips --cropToHeightWidth <h-56> <w> --cropOffset 56 0 <file>`.
+Compress the files before you commit them: `oxipng -o 4 --strip safe docs/screenshots/*.png`.
+
 ## Release Process
 
 1. Tag format: `vMAJOR.MINOR.PATCH`

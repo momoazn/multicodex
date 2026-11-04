@@ -5,21 +5,45 @@ import SwiftUI
 
 extension AccountsMenuContentView {
     var header: some View {
-        HStack(alignment: .center, spacing: 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(viewModel.currentAccount?.name ?? "MultiCodex")
-                    .font(DashboardTokens.Font.cardHeading())
-                    .foregroundStyle(DashboardTokens.textPrimary)
+        HStack(alignment: .center, spacing: 10) {
+            AccountAvatar(
+                name: viewModel.currentAccount?.name ?? "M",
+                color: DashboardTokens.accent,
+                size: 32
+            )
 
-                Text(headerSummaryText)
-                    .font(DashboardTokens.Font.metadata())
-                    .foregroundStyle(DashboardTokens.textSecondary)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(viewModel.currentAccount?.name ?? "MultiCodex")
+                        .font(DashboardTokens.Font.title())
+                        .foregroundStyle(DashboardTokens.textPrimary)
+                        .lineLimit(1)
+
+                    if viewModel.currentAccount != nil {
+                        AccountStatusPill(text: "Active", color: DashboardTokens.accent)
+                    }
+                }
+
+                // Re-render every 30 s so "Updated ..." does not go stale while the menu is open.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    Text(headerSummaryText(now: context.date))
+                        .font(DashboardTokens.Font.metadata())
+                        .foregroundStyle(DashboardTokens.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
 
             Spacer(minLength: 12)
 
             HStack(spacing: 6) {
+                if viewModel.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(DashboardTokens.accent)
+                        .accessibilityLabel("Refreshing")
+                }
+
                 ActionPillButton(
                     title: "Refresh",
                     symbol: "arrow.clockwise",
@@ -30,7 +54,7 @@ extension AccountsMenuContentView {
                     viewModel.refreshLive()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
-                .help("Refresh usage (Cmd+R)")
+                .help("Refresh usage (⌘R)")
 
                 ActionPillButton(
                     title: "Settings",
@@ -41,106 +65,68 @@ extension AccountsMenuContentView {
                     openSettingsWindow()
                 }
                 .keyboardShortcut(",", modifiers: [.command])
-                .help("Open Settings (Cmd+,)")
+                .help("Open Settings (⌘,)")
             }
         }
         .cardStyle(fill: DashboardTokens.cardBackgroundSubtle, hasGlass: true)
     }
 }
 
-// MARK: - Sort Menus
+// MARK: - Sort Menu
 
 extension AccountsMenuContentView {
-    private var sortCriterionMenu: some View {
+    /// One compact menu replaces three full-width pickers.
+    var sortMenu: some View {
         Menu {
-            Button { viewModel.setAccountSortCriterion(.used) } label: {
-                menuSelectionLabel("Used", isSelected: viewModel.accountSortCriterion == .used)
+            Picker("Sort by", selection: Binding(
+                get: { viewModel.accountSortCriterion },
+                set: { viewModel.setAccountSortCriterion($0) }
+            )) {
+                ForEach(AccountSortCriterion.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Button { viewModel.setAccountSortCriterion(.remaining) } label: {
-                menuSelectionLabel("Remaining", isSelected: viewModel.accountSortCriterion == .remaining)
-            }
-            Button { viewModel.setAccountSortCriterion(.name) } label: {
-                menuSelectionLabel("Name", isSelected: viewModel.accountSortCriterion == .name)
-            }
-        } label: {
-            sortOptionPill(value: viewModel.accountSortCriterion.title)
-        }
-        .menuStyle(.borderlessButton)
-        .help("Sort criterion")
-    }
-
-    private var sortWindowMenu: some View {
-        Menu {
-            Button { viewModel.setAccountSortWindow(.fiveHour) } label: {
-                menuSelectionLabel("5h", isSelected: viewModel.accountSortWindow == .fiveHour)
-            }
-            Button { viewModel.setAccountSortWindow(.weekly) } label: {
-                menuSelectionLabel("Weekly", isSelected: viewModel.accountSortWindow == .weekly)
-            }
-        } label: {
-            sortOptionPill(value: viewModel.accountSortWindow.title)
-        }
-        .menuStyle(.borderlessButton)
-        .help("Sort window")
-    }
-
-    private var sortDirectionMenu: some View {
-        Menu {
-            Button { viewModel.setAccountSortDirection(.ascending) } label: {
-                menuSelectionLabel("Low to high", isSelected: viewModel.accountSortDirection == .ascending)
-            }
-            Button { viewModel.setAccountSortDirection(.descending) } label: {
-                menuSelectionLabel("High to low", isSelected: viewModel.accountSortDirection == .descending)
-            }
-        } label: {
-            sortOptionPill(value: viewModel.accountSortDirection.shortTitle)
-        }
-        .menuStyle(.borderlessButton)
-        .help("Sort direction")
-    }
-
-    private var sortOptionsRow: some View {
-        HStack(spacing: 6) {
-            sortCriterionMenu
+            .pickerStyle(.inline)
 
             if viewModel.accountSortCriterion != .name {
-                sortWindowMenu
+                Picker("Window", selection: Binding(
+                    get: { viewModel.accountSortWindow },
+                    set: { viewModel.setAccountSortWindow($0) }
+                )) {
+                    ForEach(AccountSortWindow.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline)
             }
 
-            sortDirectionMenu
-
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func sortOptionPill(value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(value)
-                .foregroundColor(DashboardTokens.textPrimary)
-                .fontWeight(.semibold)
-        }
-        .font(DashboardTokens.Font.metadata())
-        .lineLimit(1)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(
-            RoundedRectangle(cornerRadius: DashboardTokens.Spacing.controlRadius, style: .continuous)
-                .fill(DashboardTokens.cardBackgroundSubtle)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DashboardTokens.Spacing.controlRadius, style: .continuous)
-                .stroke(DashboardTokens.cardBorder, lineWidth: 0.5)
-        )
-    }
-
-    private func menuSelectionLabel(_ title: String, isSelected: Bool) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .font(DashboardTokens.Font.microLabel())
+            Picker("Order", selection: Binding(
+                get: { viewModel.accountSortDirection },
+                set: { viewModel.setAccountSortDirection($0) }
+            )) {
+                Text("High to low").tag(SortDirection.descending)
+                Text("Low to high").tag(SortDirection.ascending)
             }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(DashboardTokens.Font.caption())
+                Text(sortSummaryText)
+                    .font(DashboardTokens.Font.metadata().weight(.medium))
+            }
+            .foregroundStyle(DashboardTokens.textSecondary)
         }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Sort accounts")
+        .accessibilityLabel("Sort accounts")
+        .accessibilityValue(sortSummaryText)
+    }
+
+    private var sortSummaryText: String {
+        let arrow = viewModel.accountSortDirection == .descending ? "↓" : "↑"
+        if viewModel.accountSortCriterion == .name {
+            return "Name \(arrow)"
+        }
+        return "\(viewModel.accountSortCriterion.title) · \(viewModel.accountSortWindow.title) \(arrow)"
     }
 }
 
@@ -166,66 +152,54 @@ extension AccountsMenuContentView {
         VStack(alignment: .leading, spacing: DashboardTokens.Spacing.cardGap) {
             if let current = viewModel.currentAccount {
                 HStack(spacing: DashboardTokens.Spacing.cardGap) {
-                    usageCard(
-                        title: viewModel.usageBarStyle == .depleting ? "5h Remaining" : "5h Usage",
-                        progress: viewModel.progressValue(for: current.usage.fiveHour),
-                        color: DashboardTokens.ringFiveHour,
-                        ringLabel: "5H",
-                        valueText: viewModel.displayPercentText(for: current.usage.fiveHour),
-                        resetText: current.usage.fiveHour.resetText(mode: viewModel.resetDisplayMode)
-                    )
-
-                    usageCard(
-                        title: viewModel.usageBarStyle == .depleting ? "Weekly Remaining" : "Weekly Usage",
-                        progress: viewModel.progressValue(for: current.usage.weekly),
-                        color: DashboardTokens.ringWeekly,
-                        ringLabel: "WK",
-                        valueText: viewModel.displayPercentText(for: current.usage.weekly),
-                        resetText: current.usage.weekly.resetText(mode: viewModel.resetDisplayMode)
-                    )
+                    usageCard(title: "5-hour limit", metric: current.usage.fiveHour)
+                    usageCard(title: "Weekly limit", metric: current.usage.weekly)
                 }
             }
         }
     }
 
-    private func usageCard(
-        title: String,
-        progress: Double,
-        color: Color,
-        ringLabel: String,
-        valueText: String,
-        resetText: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            DashboardSectionHeader(title: title)
+    /// The ring shows one side (left or used); the text shows the other, so nothing repeats.
+    private func complementText(for metric: UsageMetric, isRemaining: Bool) -> String {
+        guard let used = metric.usedPercent else { return "No data" }
+        let clamped = min(100, max(0, used))
+        return isRemaining ? "\(Int(clamped.rounded()))% used" : "\(Int((100 - clamped).rounded()))% left"
+    }
 
-            HStack(spacing: 10) {
-                DashboardProgressRing(
-                    progress: progress,
-                    color: color,
-                    label: ringLabel,
-                    valueText: valueText,
-                    size: 52,
-                    expandHorizontally: false
-                )
+    private func usageCard(title: String, metric: UsageMetric) -> some View {
+        let isRemaining = viewModel.usageBarStyle == .depleting
+        let tone = AccountPresentation.usageColor(for: metric)
+        let valueText = viewModel.displayPercentText(for: metric)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(valueText)
-                        .font(DashboardTokens.Font.cardHeading())
-                        .foregroundStyle(DashboardTokens.textPrimary)
-                        .monospacedDigit()
-                    Text(resetText)
-                        .font(DashboardTokens.Font.metadata())
-                        .foregroundStyle(DashboardTokens.textSecondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        return HStack(spacing: 12) {
+            DashboardProgressRing(
+                progress: viewModel.progressValue(for: metric),
+                color: tone,
+                label: isRemaining ? "LEFT" : "USED",
+                valueText: valueText,
+                size: 56,
+                expandHorizontally: false
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                DashboardSectionHeader(title: title)
+                Text(complementText(for: metric, isRemaining: isRemaining))
+                    .font(DashboardTokens.Font.cardHeading())
+                    .foregroundStyle(DashboardTokens.textPrimary)
+                    .monospacedDigit()
+                Text(metric.resetText(mode: viewModel.resetDisplayMode))
+                    .font(DashboardTokens.Font.metadata())
+                    .foregroundStyle(DashboardTokens.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle(fill: DashboardTokens.cardBackgroundElevated, hasGlass: true)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title) for current account")
     }
-
 }
 
 // MARK: - Runtime Status Panel
@@ -264,17 +238,17 @@ extension AccountsMenuContentView {
         VStack(alignment: .leading, spacing: DashboardTokens.Spacing.cardGap) {
             HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    DashboardSectionHeader(title: "Accounts")
-                    Text(accountsSummaryText)
-                        .font(DashboardTokens.Font.metadata())
-                        .foregroundStyle(DashboardTokens.textSecondary)
+                    DashboardSectionHeader(title: viewModel.currentAccount == nil ? "Accounts" : "Other accounts")
+                    accountsSummaryLine
                 }
 
                 Spacer()
 
+                sortMenu
+
                 ActionPillButton(
                     title: areAllAccountsExpanded ? "Collapse All" : "Expand All",
-                    symbol: areAllAccountsExpanded ? "chevron.up" : "chevron.down",
+                    symbol: areAllAccountsExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical",
                     role: .secondary,
                     layout: .iconOnly
                 ) {
@@ -282,10 +256,6 @@ extension AccountsMenuContentView {
                 }
                 .help(areAllAccountsExpanded ? "Collapse all" : "Expand all")
             }
-
-            healthSummaryRow
-
-            sortOptionsRow
 
             if shouldScrollAccountsList {
                 ScrollView(.vertical, showsIndicators: false) {
@@ -466,7 +436,7 @@ extension AccountsMenuContentView {
     var footer: some View {
         HStack(spacing: DashboardTokens.Spacing.footerSpacing) {
             ActionPillButton(
-                title: viewModel.accounts.isEmpty ? "Start Login" : "Login New",
+                title: viewModel.accounts.isEmpty ? "Start Login" : "Add Account",
                 symbol: "person.crop.circle.badge.plus",
                 role: loginNewFooterRole,
                 isDisabled: isActionBusy
@@ -477,10 +447,24 @@ extension AccountsMenuContentView {
             Spacer()
 
             if hiddenAccountsCount > 0, !viewModel.showAllAccountsInMenu {
-                Text("+\(hiddenAccountsCount) hidden")
-                    .font(DashboardTokens.Font.metadata())
-                    .foregroundStyle(DashboardTokens.textTertiary)
+                Button("Show \(hiddenAccountsCount) more") {
+                    viewModel.setShowAllAccountsInMenu(true)
+                }
+                .buttonStyle(.plain)
+                .font(DashboardTokens.Font.metadata().weight(.medium))
+                .foregroundStyle(DashboardTokens.accentSoft)
             }
+
+            ActionPillButton(
+                title: "Quit MultiCodex",
+                symbol: "power",
+                role: .secondary,
+                layout: .iconOnly
+            ) {
+                NSApp.terminate(nil)
+            }
+            .keyboardShortcut("q", modifiers: [.command])
+            .help("Quit MultiCodex (⌘Q)")
         }
         .padding(.top, 2)
     }
@@ -526,52 +510,33 @@ extension AccountsMenuContentView {
         }
     }
 
-    var headerSummaryText: String {
+    func headerSummaryText(now: Date) -> String {
         if viewModel.accounts.isEmpty {
-            return "No accounts configured yet"
+            return "No accounts yet"
         }
-
-        let healthyCount = viewModel.accounts.count - viewModel.accountsNeedingLogin.count
-        return "\(healthyCount) ready \u{2022} \(viewModel.lastUpdatedLabel)"
+        let updated = viewModel.lastUpdatedLabel(now: now)
+        guard let email = viewModel.currentAccount?.workspaceEmailHint else { return updated }
+        return "\(email) \u{2022} \(updated)"
     }
 
-    var accountsSummaryText: String {
-        if hiddenAccountsCount > 0, !viewModel.showAllAccountsInMenu {
-            return "Showing \(visibleRows.count) of \(allRows.count)"
-        }
-        return "\(allRows.count) accounts"
-    }
-
-    private var healthSummaryRow: some View {
+    /// "4 of 5 ready · 2 low · next reset 46 min", colored by severity.
+    var accountsSummaryLine: some View {
         let health = AccountsHealthSummary.from(viewModel.accounts)
-        guard viewModel.accounts.count > 1 else { return AnyView(EmptyView()) }
-        return AnyView(
-            HStack(spacing: 8) {
-                Text(health.summaryText)
-                    .font(DashboardTokens.Font.caption())
-                    .foregroundStyle(DashboardTokens.textSecondary)
-
-                if health.atRiskAccounts > 0 {
-                    Text("\(health.atRiskAccounts) at risk")
-                        .font(DashboardTokens.Font.caption())
-                        .foregroundStyle(DashboardTokens.statusOrange)
-                }
-
-                Spacer()
-
-                if let nextReset = health.nextResetAt {
-                    Text("Next reset: \(UsageFormatter.resetText(for: nextReset, mode: .relative))")
-                        .font(DashboardTokens.Font.caption())
-                        .foregroundStyle(DashboardTokens.textTertiary)
-                }
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(DashboardTokens.cardBackgroundSubtle)
-            )
-        )
+        var line = Text("\(health.healthyAccounts) of \(health.totalAccounts) ready")
+            .foregroundColor(DashboardTokens.textSecondary)
+        if health.atRiskAccounts > 0 {
+            line = line
+                + Text(" \u{00B7} ").foregroundColor(DashboardTokens.textTertiary)
+                + Text("\(health.atRiskAccounts) running low").foregroundColor(DashboardTokens.statusOrange)
+        }
+        if hiddenAccountsCount > 0, !viewModel.showAllAccountsInMenu {
+            line = line
+                + Text(" \u{00B7} ").foregroundColor(DashboardTokens.textTertiary)
+                + Text("showing \(visibleRows.count) of \(allRows.count)").foregroundColor(DashboardTokens.textTertiary)
+        }
+        return line
+            .font(DashboardTokens.Font.metadata())
+            .lineLimit(1)
     }
 }
 
@@ -701,6 +666,10 @@ extension AccountsMenuContentView {
         }
         if modifiers == [.command], event.charactersIgnoringModifiers == "," {
             openSettingsWindow()
+            return true
+        }
+        if modifiers == [.command], event.charactersIgnoringModifiers?.lowercased() == "q" {
+            NSApp.terminate(nil)
             return true
         }
         return false

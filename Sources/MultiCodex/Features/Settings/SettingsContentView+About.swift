@@ -7,9 +7,7 @@ extension SettingsContentView {
                 title: "About",
                 description: "Version, shortcuts, and support links.",
                 symbol: "app.badge"
-            ) {
-                settingsBadge(text: "Version \(appVersion)", symbol: "number", color: DashboardTokens.accent)
-            }
+            )
 
             SettingsPanelCard {
                 VStack(alignment: .leading, spacing: 14) {

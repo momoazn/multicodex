@@ -32,45 +32,21 @@ struct DashboardAccountRow: View {
     private var activationHelpText: String {
         switch row.primaryAction {
         case .switchAccount: return "Switch to this account"
-        case .relogin: return "Re-login this account"
+        case .relogin: return "Log in to this account again"
         case .none: return "Current account"
         }
     }
 
     private var activationSymbol: String {
         switch row.primaryAction {
-        case .switchAccount: return "arrow.left.arrow.right.circle.fill"
-        case .relogin: return "arrow.triangle.2.circlepath.circle.fill"
-        case .none: return "checkmark.circle.fill"
+        case .switchAccount: return "arrow.left.arrow.right"
+        case .relogin: return "arrow.triangle.2.circlepath"
+        case .none: return "checkmark"
         }
     }
 
     private var isActivationDisabled: Bool {
         isBusy && row.primaryAction != .none
-    }
-
-    private var activationForegroundColor: Color {
-        switch row.primaryAction {
-        case .switchAccount: return DashboardTokens.textSecondary
-        case .relogin: return DashboardTokens.statusOrange
-        case .none: return DashboardTokens.accent
-        }
-    }
-
-    private var activationBackgroundColor: Color {
-        switch row.primaryAction {
-        case .switchAccount: return DashboardTokens.cardBackgroundSubtle
-        case .relogin: return DashboardTokens.statusOrange.opacity(0.14)
-        case .none: return DashboardTokens.accentBackground.opacity(0.85)
-        }
-    }
-
-    private var activationBorderColor: Color {
-        switch row.primaryAction {
-        case .switchAccount: return DashboardTokens.cardBorder
-        case .relogin: return DashboardTokens.statusOrange.opacity(0.48)
-        case .none: return DashboardTokens.accent.opacity(0.36)
-        }
     }
 
     private var rowBackgroundColor: Color {
@@ -93,43 +69,48 @@ struct DashboardAccountRow: View {
         return isHovered ? DashboardTokens.hoverBorder : DashboardTokens.cardBorder
     }
 
-    private var statusColor: Color {
-        switch row.account.connectionState {
-        case .connected: return DashboardTokens.accentSoft
-        case .needsLogin: return DashboardTokens.statusOrange
-        case .error: return DashboardTokens.statusRed
-        }
-    }
-
     private var connectionLabel: String? {
-        if row.isCurrent { return "Current" }
         switch row.primaryAction {
-        case .relogin: return "Needs Login"
+        case .relogin: return "Needs login"
         case .switchAccount: return nil
-        case .none: return row.account.connectionState.label
+        case .none: return row.isCurrent ? "Active" : row.account.connectionState.label
         }
     }
 
-    /// Inline micro usage bar color for the 5h metric in collapsed state
-    /// Based on used percent, not on the bar fill: in "depleting" style the fill is the
-    /// remaining share, so a full (fresh) bar would show red.
-    private var microBarColor: Color {
-        let used = (row.account.usage.fiveHour.usedPercent ?? 0) / 100
-        if used > 0.80 { return DashboardTokens.statusRed }
-        if used > 0.60 { return DashboardTokens.statusOrange }
-        return DashboardTokens.accent
+    private var avatarColor: Color {
+        switch row.primaryAction {
+        case .relogin: return DashboardTokens.statusOrange
+        case .none: return DashboardTokens.accent
+        case .switchAccount: return DashboardTokens.accentSoft
+        }
+    }
+
+    private var subtitleText: String {
+        if row.primaryAction == .relogin {
+            return "Session expired. Log in again."
+        }
+        return row.workspaceEmailHint ?? row.resetText
+    }
+
+    private var accessibilitySummary: String {
+        var parts = [row.name]
+        if let connectionLabel { parts.append(connectionLabel) }
+        if row.account.connectionState == .connected {
+            parts.append("5-hour \(fiveHourPercentText)")
+            parts.append("weekly \(weeklyPercentText)")
+        }
+        return parts.joined(separator: ", ")
     }
 
     // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ── Collapsed Row ──
             HStack(spacing: 10) {
-                activationCheckboxButton
+                activationButton
 
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
                             Text(row.name)
                                 .font(DashboardTokens.Font.accountName())
@@ -137,40 +118,43 @@ struct DashboardAccountRow: View {
                                 .lineLimit(1)
 
                             if let connectionLabel {
-                                AccountStatusPill(
-                                    text: connectionLabel,
-                                    color: row.isCurrent ? DashboardTokens.accent : statusColor
-                                )
+                                AccountStatusPill(text: connectionLabel, color: avatarColor)
                             }
                         }
 
-                        HStack(spacing: 6) {
-                            Text(row.workspaceEmailHint ?? row.resetText)
-                                .font(DashboardTokens.Font.metadata())
-                                .foregroundStyle(DashboardTokens.textSecondary)
-                                .lineLimit(1)
-
-                            Spacer(minLength: 4)
-
-                            // Inline micro usage bar (collapsed only)
-                            if !isExpanded, row.account.connectionState == .connected {
-                                microUsageBar
-                            }
-                        }
+                        Text(subtitleText)
+                            .font(DashboardTokens.Font.metadata())
+                            .foregroundStyle(row.primaryAction == .relogin ? DashboardTokens.statusOrange.opacity(0.9) : DashboardTokens.textSecondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
 
-                    Spacer(minLength: 4)
+                    Spacer(minLength: 6)
+
+                    if !isExpanded, row.account.connectionState == .connected {
+                        VStack(alignment: .trailing, spacing: 5) {
+                            compactMeter(label: "5h", metric: row.account.usage.fiveHour, valueText: fiveHourPercentText, progress: fiveHourProgressValue)
+                            compactMeter(label: "wk", metric: row.account.usage.weekly, valueText: weeklyPercentText, progress: weeklyProgressValue)
+                        }
+                        .accessibilityHidden(true)
+                    }
 
                     if canCancelLogin {
                         cancelLoginButton
                     }
 
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: "chevron.down")
                         .font(DashboardTokens.Font.chevron())
                         .foregroundStyle(DashboardTokens.textTertiary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .accessibilityHidden(true)
                 }
                 .contentShape(Rectangle())
                 .help(primaryAreaHelpText)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilitySummary)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(isExpanded ? "Collapse details" : "Expand details")
             }
 
             expandedDisclosure
@@ -193,28 +177,28 @@ struct DashboardAccountRow: View {
             onRowTap()
         }
         .accessibilityElement(children: .contain)
-        .accessibilityHint("Use the primary action button to switch or re-login. Use row action to expand details.")
         .accessibilityAction(named: Text(isExpanded ? "Collapse details" : "Expand details")) {
             onToggleExpanded()
         }
     }
 
-    // MARK: - Micro Usage Bar (collapsed inline)
+    // MARK: - Compact Meter (collapsed)
 
-    private var microUsageBar: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.06))
-
-                Capsule()
-                    .fill(microBarColor.opacity(0.72))
-                    .frame(width: proxy.size.width * CGFloat(min(1, max(0, fiveHourProgressValue))))
-            }
+    private func compactMeter(label: String, metric: UsageMetric, valueText: String, progress: Double) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(DashboardTokens.Font.captionRegular())
+                .foregroundStyle(DashboardTokens.textTertiary)
+            UsageMeterBar(progress: progress, color: AccountPresentation.usageColor(for: metric), height: 4)
+                .frame(width: 44)
+            Text(valueText)
+                .font(DashboardTokens.Font.caption())
+                .foregroundStyle(UsageLevel.from(usedPercent: metric.usedPercent) == .normal
+                    ? DashboardTokens.textPrimary
+                    : AccountPresentation.usageColor(for: metric))
+                .monospacedDigit()
+                .frame(width: 32, alignment: .trailing)
         }
-        .frame(width: 36, height: 3)
-        .accessibilityLabel("5h usage")
-        .accessibilityValue(fiveHourPercentText)
     }
 
     // MARK: - Activation Button
@@ -222,44 +206,40 @@ struct DashboardAccountRow: View {
     private var primaryAreaHelpText: String {
         switch row.primaryAction {
         case .switchAccount:
-            return "Tap to expand. Use the leading button to switch."
+            return "Click to show details. Click the avatar to switch."
         case .relogin:
-            return "Tap to expand. Use the leading button to re-login."
+            return "Click to show details. Click the avatar to log in again."
         case .none:
-            return "Current account. Tap to show usage details."
+            return "Current account. Click to show usage details."
         }
     }
 
-    private var activationCheckboxButton: some View {
+    /// Avatar initial; on hover it shows what a click does (switch or re-login).
+    private var activationButton: some View {
         Button(action: onActivate) {
             ZStack {
-                Circle()
-                    .fill(activationBackgroundColor)
-                Circle()
-                    .stroke(activationBorderColor, lineWidth: 0.5)
-
                 if isPrimaryActionInProgress {
+                    Circle().fill(avatarColor.opacity(0.16))
                     ProgressView()
                         .controlSize(.small)
-                        .tint(DashboardTokens.accent)
-                } else {
+                        .tint(avatarColor)
+                } else if isHovered, row.primaryAction != .none, !isActivationDisabled {
+                    Circle().fill(avatarColor.opacity(0.24))
+                    Circle().stroke(avatarColor.opacity(0.6), lineWidth: 0.5)
                     Image(systemName: activationSymbol)
-                        .font(DashboardTokens.Font.caption())
-                        .foregroundStyle(activationForegroundColor)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(avatarColor)
+                } else {
+                    AccountAvatar(name: row.name, color: avatarColor, size: 28)
                 }
             }
-            .frame(width: 24, height: 24)
-            .shadow(
-                color: row.primaryAction == .none ? DashboardTokens.accent.opacity(0.18) : .clear,
-                radius: row.primaryAction == .none ? 4 : 0,
-                y: 0
-            )
+            .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
         .disabled(isActivationDisabled)
         .opacity(isActivationDisabled ? 0.48 : 1)
         .accessibilityLabel(activationHelpText)
-        .accessibilityValue(isPrimaryActionInProgress ? "In progress" : "Ready")
+        .accessibilityValue(isPrimaryActionInProgress ? "In progress" : "")
         .help(activationHelpText)
         .contentShape(Circle())
     }
@@ -299,21 +279,23 @@ struct DashboardAccountRow: View {
 
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 8) {
-                expandedMetricBar(
-                    label: "5H",
-                    valueText: fiveHourPercentText,
-                    resetText: row.resetText,
-                    progress: fiveHourProgressValue,
-                    color: DashboardTokens.ringFiveHour
-                )
-                expandedMetricBar(
-                    label: "WEEK",
-                    valueText: weeklyPercentText,
-                    resetText: row.account.usage.weekly.resetText(mode: row.resetDisplayMode),
-                    progress: weeklyProgressValue,
-                    color: DashboardTokens.ringWeekly
-                )
+            if row.account.connectionState == .connected {
+                VStack(alignment: .leading, spacing: 8) {
+                    expandedMetricBar(
+                        label: "5-hour",
+                        metric: row.account.usage.fiveHour,
+                        valueText: fiveHourPercentText,
+                        resetText: row.resetText,
+                        progress: fiveHourProgressValue
+                    )
+                    expandedMetricBar(
+                        label: "Weekly",
+                        metric: row.account.usage.weekly,
+                        valueText: weeklyPercentText,
+                        resetText: row.account.usage.weekly.resetText(mode: row.resetDisplayMode),
+                        progress: weeklyProgressValue
+                    )
+                }
             }
 
             expandedDetailFooter
@@ -322,16 +304,15 @@ struct DashboardAccountRow: View {
 
     private func expandedMetricBar(
         label: String,
+        metric: UsageMetric,
         valueText: String,
         resetText: String,
-        progress: Double,
-        color: Color
+        progress: Double
     ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
                 Text(label)
                     .font(DashboardTokens.Font.caption())
-                    .tracking(0.5)
                     .foregroundStyle(DashboardTokens.textTertiary)
                 Text(valueText)
                     .font(DashboardTokens.Font.metadata().weight(.semibold))
@@ -347,52 +328,38 @@ struct DashboardAccountRow: View {
                     .minimumScaleFactor(0.85)
             }
 
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.06))
-
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.70), color],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: proxy.size.width * CGFloat(min(1, max(0, progress))))
-                        .shadow(color: color.opacity(0.30), radius: 3, y: 0)
-                }
-            }
-            .frame(height: 4)
+            UsageMeterBar(progress: progress, color: AccountPresentation.usageColor(for: metric), height: 5)
         }
+        .accessibilityElement(children: .combine)
     }
 
     private var expandedDetailFooter: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             if let paceText = row.account.paceSummary {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Circle()
                         .fill(paceColor(row.account.fiveHourPace?.stage))
                         .frame(width: 6, height: 6)
                     Text(paceText)
-                        .font(DashboardTokens.Font.caption())
+                        .font(DashboardTokens.Font.metadata())
                         .foregroundStyle(DashboardTokens.textSecondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let email = row.workspaceEmailHint {
-                    Label(email, systemImage: "person.crop.circle")
-                        .font(DashboardTokens.Font.metadata())
-                        .foregroundStyle(DashboardTokens.textTertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-
+            HStack(alignment: .center, spacing: 8) {
+                // The email is already in the row subtitle.
                 Spacer(minLength: 6)
+
+                switch row.primaryAction {
+                case .switchAccount:
+                    ActionPillButton(title: "Switch", symbol: "arrow.left.arrow.right", role: .primary, isDisabled: isActivationDisabled, action: onActivate)
+                case .relogin:
+                    ActionPillButton(title: "Log In Again", symbol: "arrow.triangle.2.circlepath", role: .primary, isDisabled: isActivationDisabled, action: onActivate)
+                case .none:
+                    EmptyView()
+                }
             }
         }
     }
