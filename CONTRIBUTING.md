@@ -49,4 +49,4 @@ Use GitHub Issues for bug reports and feature requests. Include:
 - macOS version
 - MultiCodex version
 
-For security issues, please open an issue with minimal reproduction details and avoid posting sensitive data.
+Do not report security issues in public issues. See [SECURITY.md](SECURITY.md).
