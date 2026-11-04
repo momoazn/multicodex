@@ -4,8 +4,12 @@ final class MultiCodexAppDelegate: NSObject, NSApplicationDelegate {
     private var observers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AutoSwitchNotificationCenter.shared.requestAuthorizationIfNeeded()
-        performManagedHomeMigration()
+        if DemoMode.isEnabled {
+            Task { @MainActor in DemoCapture.startIfRequested() }
+        } else {
+            AutoSwitchNotificationCenter.shared.requestAuthorizationIfNeeded()
+            performManagedHomeMigration()
+        }
         observeWindowLifecycle()
         DispatchQueue.main.async { [weak self] in
             self?.updateActivationPolicyForVisibleWindows()
