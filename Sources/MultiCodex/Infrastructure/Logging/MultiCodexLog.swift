@@ -8,8 +8,6 @@ enum MultiCodexLog {
         case auth
         case switching
         case refresh
-        case usage
-        case pace
         case identity
         case config
         case notifications
