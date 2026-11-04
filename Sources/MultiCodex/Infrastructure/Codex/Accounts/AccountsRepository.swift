@@ -25,10 +25,6 @@ extension CodexAccountService {
         return AccountsListPayload(accounts: accounts, currentAccount: config.currentAccount)
     }
 
-    func addAccountIfNeededNow(name: String) throws -> AddAccountPayload {
-        try addAccountCore(name: name, onExisting: .ignore, selectIfFirst: true)
-    }
-
     func addAccountIfNeededForLoginNow(name: String) throws -> AddAccountPayload {
         try addAccountCore(name: name, onExisting: .ignore, selectIfFirst: false)
     }

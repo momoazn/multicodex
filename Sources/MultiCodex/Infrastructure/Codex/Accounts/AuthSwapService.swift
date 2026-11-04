@@ -3,11 +3,6 @@ import Foundation
 
 /// Handles account switching with atomic auth file operations.
 enum AuthSwapService {
-    struct SwapResult {
-        let targetAccount: String
-        let previousAccountPreserved: Bool
-    }
-
     /// Switch the system codex auth to a target managed account's auth.
     static func switchToAccount(
         named targetName: String,
@@ -288,7 +283,6 @@ enum AuthSwapService {
     }
 
     enum AuthSwapError: LocalizedError {
-        case managedHomeNotFound(String)
         case authNotFound(String)
         case externalAuthDetected(
             previousAccount: String,
@@ -298,8 +292,6 @@ enum AuthSwapService {
 
         var errorDescription: String? {
             switch self {
-            case .managedHomeNotFound(let name):
-                return "Managed home directory not found for account: \(name)"
             case .authNotFound(let name):
                 return "Auth data not found for account: \(name)"
             case .externalAuthDetected(let previousAccount, _, let systemIdentity):

@@ -592,10 +592,6 @@ extension CodexAccountService {
         }.value
     }
 
-    func refreshStaleTokens() -> [String: Error] {
-        refreshStaleTokensNow()
-    }
-
     func storedAuthModifiedDate(for account: String, paths: PathContext) -> Date? {
         let authPath = managedAuthPath(for: account, paths: paths) ?? paths.accountAuthPath(account)
         return try? fileManager.attributesOfItem(atPath: authPath)[.modificationDate] as? Date

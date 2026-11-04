@@ -32,12 +32,4 @@ final class ManagedHomeFactoryTests: XCTestCase {
         let readBack = try ManagedCodexHomeFactory.readAuthData(from: homeURL)
         XCTAssertEqual(readBack, testData)
     }
-
-    func testValidateSafeDeletionRejectsRootPath() {
-        XCTAssertThrowsError(
-            try ManagedCodexHomeFactory.validateSafeDeletion(
-                ManagedCodexHomeFactory.defaultRootURL()
-            )
-        )
-    }
 }

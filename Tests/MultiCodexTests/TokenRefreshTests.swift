@@ -8,7 +8,7 @@ final class TokenRefreshTests: XCTestCase {
         service.sandboxMulticodexHomeDirectory = NSTemporaryDirectory() + "/mc-test-token-\(UUID().uuidString)/config"
         try? FileManager.default.createDirectory(atPath: service.effectiveMulticodexHomePath(), withIntermediateDirectories: true)
 
-        let errors = service.refreshStaleTokens()
+        let errors = service.refreshStaleTokensNow()
         XCTAssertTrue(errors.isEmpty)
     }
 
@@ -22,7 +22,7 @@ final class TokenRefreshTests: XCTestCase {
         _ = try service.addAccountNow(name: "alpha")
         // No auth file written — should be skipped
 
-        let errors = service.refreshStaleTokens()
+        let errors = service.refreshStaleTokensNow()
         XCTAssertTrue(errors.isEmpty, "Should skip accounts without auth")
     }
 }
