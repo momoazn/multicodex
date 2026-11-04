@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "macos",
+    name: "MultiCodex",
     platforms: [
         .macOS(.v13),
     ],

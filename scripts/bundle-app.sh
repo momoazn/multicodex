@@ -6,8 +6,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root_dir="$(cd "${script_dir}/.." && pwd)"
 
 app_name="MultiCodex"
-resource_bundle="macos_MultiCodex.bundle"
+resource_bundle="MultiCodex_MultiCodex.bundle"
 app_bundle="${root_dir}/build/dist/MultiCodex.app"
+# Keep the old SwiftPM-derived ID: changing it resets user preferences and macOS permissions.
 default_bundle_id="org.swift.swiftpm.macos.MultiCodex"
 app_icon_icns="${root_dir}/Assets/AppIcon.icns"
 plist_buddy="/usr/libexec/PlistBuddy"
