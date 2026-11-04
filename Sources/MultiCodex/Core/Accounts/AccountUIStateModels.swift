@@ -139,15 +139,6 @@ enum SortDirection: String, CaseIterable, Identifiable {
             return "Desc"
         }
     }
-
-    var arrowSymbol: String {
-        switch self {
-        case .ascending:
-            return "↑"
-        case .descending:
-            return "↓"
-        }
-    }
 }
 
 struct MenuAlertState {

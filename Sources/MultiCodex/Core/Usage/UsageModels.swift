@@ -66,13 +66,6 @@ struct UsageMetric {
     let periodMinutes: Int?
     let resetsAt: Date?
 
-    var normalizedFraction: Double {
-        guard let usedPercent else {
-            return 0
-        }
-        return min(1, max(0, usedPercent / 100))
-    }
-
     func resetText(mode: ResetDisplayMode) -> String {
         UsageFormatter.resetText(for: resetsAt, mode: mode)
     }

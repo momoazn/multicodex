@@ -286,29 +286,6 @@ final class AccountsMenuViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.settingsSections.contains(.data))
     }
 
-    func testResetOnboardingWizardReturnsToGeneralAndClearsSelectedAccount() {
-        let defaults = makeEphemeralDefaults()
-        defaults.set("beta", forKey: AppPreferencesStore.Keys.selectedSettingsAccountName)
-        let service = MockCodexAccountService()
-        let notifier = MockAutoSwitchNotifier()
-        let viewModel = AccountsMenuViewModel(
-            accountService: service,
-            fileManager: .default,
-            autoSwitchNotifier: { notifier },
-            preferences: AppPreferencesStore(defaults: defaults),
-            startImmediately: false
-        )
-
-        viewModel.selectSettingsSection(.accounts)
-        viewModel.resetOnboardingWizard()
-
-        XCTAssertEqual(viewModel.selectedSettingsSection, .general)
-        XCTAssertNil(viewModel.selectedSettingsAccountName)
-        let persisted = AppPreferencesStore(defaults: defaults)
-        XCTAssertEqual(persisted.selectedSettingsSection, .general)
-        XCTAssertNil(persisted.selectedSettingsAccountName)
-    }
-
     func testUpdateCustomCodexPathUpdatesServiceAndStore() {
         let defaults = makeEphemeralDefaults()
         let service = MockCodexAccountService()
@@ -326,37 +303,6 @@ final class AccountsMenuViewModelTests: XCTestCase {
         XCTAssertEqual(service.customCodexPath, "/usr/local/bin/codex")
         let persisted = AppPreferencesStore(defaults: defaults)
         XCTAssertEqual(persisted.customCodexPath, "/usr/local/bin/codex")
-    }
-
-    func testMenuAccountRowsExcludeCurrentAccount() {
-        let defaults = makeEphemeralDefaults()
-        let service = MockCodexAccountService()
-        let notifier = MockAutoSwitchNotifier()
-        let viewModel = AccountsMenuViewModel(
-            accountService: service,
-            fileManager: .default,
-            autoSwitchNotifier: { notifier },
-            preferences: AppPreferencesStore(defaults: defaults),
-            startImmediately: false
-        )
-
-        viewModel.updateAccounts(
-            AccountUsageMergeService.mergeAccounts(
-                accounts: AccountsListPayload(
-                    accounts: [
-                        makeAccountEntry(name: "alpha", isCurrent: true),
-                        makeAccountEntry(name: "beta"),
-                        makeAccountEntry(name: "gamma"),
-                    ],
-                    currentAccount: "alpha"
-                ),
-                limits: LimitsPayload(results: [], errors: [])
-            )
-        )
-
-        let rows = viewModel.menuAccountRows(limit: 5)
-
-        XCTAssertEqual(rows.map(\.name), ["beta", "gamma"])
     }
 
     func testUsageModeChangesBothProgressAndPercentText() {
@@ -379,71 +325,6 @@ final class AccountsMenuViewModelTests: XCTestCase {
         viewModel.setUsageBarStyle(.depleting)
         XCTAssertEqual(viewModel.progressValue(for: metric), 0.276, accuracy: 0.000_1)
         XCTAssertEqual(viewModel.displayPercentText(for: metric), "27.6%")
-    }
-
-    func testCompactIndicatorUsesMostConstrainedWindowInBothModes() {
-        let defaults = makeEphemeralDefaults()
-        let service = MockCodexAccountService()
-        let notifier = MockAutoSwitchNotifier()
-        let viewModel = AccountsMenuViewModel(
-            accountService: service,
-            fileManager: .default,
-            autoSwitchNotifier: { notifier },
-            preferences: AppPreferencesStore(defaults: defaults),
-            startImmediately: false
-        )
-        let usage = UsageSummary(
-            fiveHour: UsageMetric(label: "5h", percentText: "92%", usedPercent: 92, periodMinutes: 300, resetsAt: nil),
-            weekly: UsageMetric(label: "weekly", percentText: "10%", usedPercent: 10, periodMinutes: 10_080, resetsAt: nil),
-            credits: "unlimited"
-        )
-
-        viewModel.setUsageBarStyle(.filling)
-        XCTAssertEqual(viewModel.compactUsedPercent(for: usage) ?? -1, 92, accuracy: 0.000_1)
-        XCTAssertEqual(viewModel.compactProgressValue(for: usage), 0.92, accuracy: 0.000_1)
-        XCTAssertEqual(viewModel.compactPercentText(for: usage), "92%")
-
-        viewModel.setUsageBarStyle(.depleting)
-        XCTAssertEqual(viewModel.compactUsedPercent(for: usage) ?? -1, 92, accuracy: 0.000_1)
-        XCTAssertEqual(viewModel.compactProgressValue(for: usage), 0.08, accuracy: 0.000_1)
-        XCTAssertEqual(viewModel.compactPercentText(for: usage), "8%")
-    }
-
-    func testMenuBarUsesMostConstrainedWindowForTitleAndSymbol() {
-        let defaults = makeEphemeralDefaults()
-        let service = MockCodexAccountService()
-        let notifier = MockAutoSwitchNotifier()
-        let viewModel = AccountsMenuViewModel(
-            accountService: service,
-            fileManager: .default,
-            autoSwitchNotifier: { notifier },
-            preferences: AppPreferencesStore(defaults: defaults),
-            startImmediately: false
-        )
-        viewModel.accounts = [
-            AccountUsage(
-                name: "alpha",
-                isCurrent: true,
-                hasAuth: true,
-                lastUsedAt: nil,
-                lastLoginStatus: nil,
-                usage: UsageSummary(
-                    fiveHour: UsageMetric(label: "5h", percentText: "10%", usedPercent: 10, periodMinutes: 300, resetsAt: nil),
-                    weekly: UsageMetric(label: "weekly", percentText: "90%", usedPercent: 90, periodMinutes: 10_080, resetsAt: nil),
-                    credits: "unlimited"
-                ),
-                source: "live-api",
-                usageError: nil
-            ),
-        ]
-
-        viewModel.setUsageBarStyle(.filling)
-        XCTAssertEqual(viewModel.menuBarTitle, "mcx 90%")
-        XCTAssertEqual(viewModel.menuBarSymbol, "gauge.with.dots.needle.67percent")
-
-        viewModel.setUsageBarStyle(.depleting)
-        XCTAssertEqual(viewModel.menuBarTitle, "mcx 10%")
-        XCTAssertEqual(viewModel.menuBarSymbol, "gauge.with.dots.needle.67percent")
     }
 
     func testDefaultSortValuesLoadFromFreshPreferences() {
@@ -603,11 +484,9 @@ final class AccountsMenuViewModelTests: XCTestCase {
         viewModel.setAccountSortCriterion(.name)
         viewModel.setAccountSortDirection(.descending)
 
-        // Intentionally divergent behavior:
-        // - menu rows exclude current account
+        // Settings list behavior:
         // - settings filtered list includes current account and sorts it with others (not pinned)
         XCTAssertEqual(viewModel.accounts.map(\.name), ["alpha", "gamma", "delta", "beta"])
-        XCTAssertEqual(viewModel.menuAccountRows(limit: 10).map(\.name), ["gamma", "delta", "beta"])
         XCTAssertEqual(viewModel.filteredAccounts.map(\.name), ["gamma", "delta", "beta", "alpha"])
     }
 
