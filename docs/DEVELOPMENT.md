@@ -126,7 +126,7 @@ Shared sort configuration between menu bar and settings:
 
 ## Testing & Quality
 
-Tests live in `Tests/MultiCodexTests/` (~2,400 lines):
+Tests live in `Tests/MultiCodexTests/` (~5.0k lines):
 
 | File | Coverage |
 |------|----------|

@@ -33,3 +33,7 @@ node_modules/
 .third_party/
 
 graphify-out/
+
+# Local agent tooling
+.claude/
+CLAUDE.md
