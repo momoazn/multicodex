@@ -541,35 +541,10 @@ extension CodexAccountService {
             return nil
         }
 
-        let nowSec = Int(Date().timeIntervalSince1970)
-        let rateLimit = asObject(body["rate_limit"])
-        let primaryWindow = asObject(rateLimit?["primary_window"])
-        let secondaryWindow = asObject(rateLimit?["secondary_window"])
-        let reviewWindow = asObject(asObject(body["code_review_rate_limit"])?["primary_window"])
-
-        let primary = buildWindow(
-            usedPercent: readNumber(primaryWindow?["used_percent"]),
-            windowDurationMins: readDurationMins(window: primaryWindow, fallbackMins: 300),
-            resetsAt: readResetsAt(window: primaryWindow, nowSec: nowSec)
-        )
-
-        let secondaryCandidate = secondaryWindow ?? reviewWindow
-        let secondary = buildWindow(
-            usedPercent: readNumber(secondaryWindow?["used_percent"]) ?? readNumber(reviewWindow?["used_percent"]),
-            windowDurationMins: readDurationMins(window: secondaryCandidate, fallbackMins: 10_080),
-            resetsAt: readResetsAt(window: secondaryCandidate, nowSec: nowSec)
-        )
-
-        let creditsObject = asObject(body["credits"])
-        let hasCredits = readBoolean(creditsObject?["has_credits"])
-        let unlimited = readBoolean(creditsObject?["unlimited"])
-        let balance = readNumber(creditsObject?["balance"]).map(numberString)
-        let credits: CreditsSnapshot?
-        if hasCredits != nil || unlimited != nil || balance != nil {
-            credits = CreditsSnapshot(hasCredits: hasCredits, unlimited: unlimited, balance: balance)
-        } else {
-            credits = nil
-        }
+        let snapshot = parseUsageSnapshotFromWhamResponse(headers: [:], data: body)
+        let primary = snapshot.primary
+        let secondary = snapshot.secondary
+        let credits = snapshot.credits
 
         guard primary != nil || secondary != nil || credits != nil else {
             return nil
@@ -585,7 +560,7 @@ extension CodexAccountService {
                 "credits": credits == nil ? "no" : "yes",
             ]
         )
-        return RateLimitSnapshot(primary: primary, secondary: secondary, credits: credits)
+        return snapshot
     }
 
     func extractJSONObject(after marker: String, in text: String) -> String? {

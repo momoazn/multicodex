@@ -22,4 +22,17 @@ final class ErrorRecoveryTests: XCTestCase {
         XCTAssertEqual(snapshot.credits?.unlimited, false)
         XCTAssertEqual(snapshot.credits?.balance, "12.5")
     }
+
+    func testRecoverSnapshotFromRPCErrorIgnoresBodyWithoutRateLimits() {
+        let service = CodexAccountService()
+        XCTAssertNil(service.recoverSnapshotFromRPCError(#"auth failed body={"detail":"Unauthorized"}"#))
+    }
+
+    func testWhamResponseWithoutWindowsHasNoWindows() {
+        let service = CodexAccountService()
+        let snapshot = service.parseUsageSnapshotFromWhamResponse(headers: [:], data: [:])
+        XCTAssertNil(snapshot.primary)
+        XCTAssertNil(snapshot.secondary)
+        XCTAssertNil(snapshot.credits)
+    }
 }
