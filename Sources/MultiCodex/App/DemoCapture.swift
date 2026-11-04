@@ -36,6 +36,15 @@ enum DemoCapture {
         snapshot(menu, to: outputDir.appendingPathComponent("menu.png"))
         menu.close()
 
+        let details = show(
+            AccountsMenuContentView(viewModel: viewModel, expandedAccountNames: ["personal"]).frame(width: 480),
+            title: "Menu details",
+            size: nil
+        )
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        snapshot(details, to: outputDir.appendingPathComponent("menu-details.png"))
+        details.close()
+
         let settings = show(SettingsContentView(viewModel: viewModel), title: "Settings", size: NSSize(width: 820, height: 600))
         for section in SettingsSection.allCases {
             viewModel.selectedSettingsSection = section
@@ -59,7 +68,15 @@ enum DemoCapture {
         window.titleVisibility = .hidden
         window.isReleasedWhenClosed = false
         window.contentView = hosting
-        window.center()
+        // Clean shots: no traffic lights, and the window away from the pointer so no row shows a hover state.
+        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            window.standardWindowButton(button)?.isHidden = true
+        }
+        if let screen = NSScreen.main?.visibleFrame {
+            let pointerOnLeft = NSEvent.mouseLocation.x < screen.midX
+            let x = pointerOnLeft ? screen.maxX - contentSize.width - 20 : screen.minX + 20
+            window.setFrameOrigin(NSPoint(x: x, y: screen.maxY - contentSize.height - 20))
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         windows.append(window)
