@@ -10,7 +10,6 @@ enum MultiCodexLog {
         case refresh
         case usage
         case pace
-        case cost
         case identity
         case config
         case notifications

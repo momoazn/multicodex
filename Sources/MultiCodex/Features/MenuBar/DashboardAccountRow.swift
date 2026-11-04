@@ -390,13 +390,6 @@ struct DashboardAccountRow: View {
                 }
 
                 Spacer(minLength: 6)
-
-                if let cost = row.account.costReport, cost.totalCostUSD > 0 {
-                    Label("\(cost.formattedToday) today", systemImage: "dollarsign.circle")
-                        .font(DashboardTokens.Font.metadata())
-                        .foregroundStyle(DashboardTokens.textSecondary)
-                        .lineLimit(1)
-                }
             }
         }
     }

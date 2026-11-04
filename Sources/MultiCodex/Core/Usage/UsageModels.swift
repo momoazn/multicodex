@@ -96,7 +96,6 @@ struct AccountUsage: Identifiable {
     let usageError: String?
     let fiveHourPace: UsagePace?
     let weeklyPace: UsagePace?
-    let costReport: CostReport?
 
     init(
         name: String,
@@ -109,8 +108,7 @@ struct AccountUsage: Identifiable {
         source: String,
         usageError: String?,
         fiveHourPace: UsagePace? = nil,
-        weeklyPace: UsagePace? = nil,
-        costReport: CostReport? = nil
+        weeklyPace: UsagePace? = nil
     ) {
         self.name = name
         self.isCurrent = isCurrent
@@ -123,7 +121,6 @@ struct AccountUsage: Identifiable {
         self.usageError = usageError
         self.fiveHourPace = fiveHourPace
         self.weeklyPace = weeklyPace
-        self.costReport = costReport
     }
 
     var id: String { name }
