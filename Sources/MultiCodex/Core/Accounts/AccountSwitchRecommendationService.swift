@@ -36,7 +36,12 @@ enum AccountSwitchRecommendationService {
 
     private static func failoverRecommendation(accounts: [AccountUsage]) -> AccountSwitchRecommendation? {
         let current = accounts.first(where: \.isCurrent)
-        let candidates = eligibleAccounts(from: accounts, excluding: current?.name)
+        let eligible = eligibleAccounts(from: accounts, excluding: current?.name)
+        // An exhausted candidate never fixes "Near limit"; switching to it would ping-pong
+        // between two full accounts on every refresh. It is still better than a broken account.
+        let fresh = eligible.filter { !isEffectivelyExhausted($0) }
+        let currentIsUsable = current?.connectionState == .connected
+        let candidates = currentIsUsable || !fresh.isEmpty ? fresh : eligible
         guard let candidate = candidates.max(by: { fallbackScore(for: $0) < fallbackScore(for: $1) }) else {
             return nil
         }
