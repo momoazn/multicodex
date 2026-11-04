@@ -110,7 +110,7 @@ extension SettingsContentView {
             }
 
             do {
-                let data = try AccountExportService.exportData(
+                let export = try AccountExportService.exportData(
                     accountService: service,
                     preferencesStore: viewModel.preferences
                 )
@@ -121,7 +121,11 @@ extension SettingsContentView {
                 panel.begin { response in
                     if response == .OK, let url = panel.url {
                         do {
-                            try AccountExportService.writeBackupData(data, to: url)
+                            try AccountExportService.writeBackupData(export.data, to: url)
+                            if !export.skippedAccounts.isEmpty {
+                                authFilesExportStatus = "Backup saved. Skipped missing auth: " +
+                                    export.skippedAccounts.joined(separator: ", ")
+                            }
                         } catch {
                             exportError = error.localizedDescription
                         }
