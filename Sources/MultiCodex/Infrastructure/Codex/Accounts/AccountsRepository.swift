@@ -294,6 +294,12 @@ extension CodexAccountService {
             metadata: ["account": account]
         )
 
+        // The snapshot mirrors a missing source by deleting the destination. Without this
+        // guard, importing while logged out would delete the account's stored tokens.
+        guard fileManager.fileExists(atPath: paths.defaultCodexAuthPath) else {
+            throw CodexAccountServiceError(message: "No ~/.codex/auth.json to import. Run `codex login` first.")
+        }
+
         let lock = try acquireAuthLock(account: account, force: false, paths: paths)
         defer { lock.release() }
 
