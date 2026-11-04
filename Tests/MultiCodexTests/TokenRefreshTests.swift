@@ -25,4 +25,9 @@ final class TokenRefreshTests: XCTestCase {
         let errors = service.refreshStaleTokensNow()
         XCTAssertTrue(errors.isEmpty, "Should skip accounts without auth")
     }
+
+    func testProactiveRefreshSkipsCurrentAccount() {
+        let config = AccountConfigRecord(currentAccount: "alpha", accounts: ["alpha", "beta"])
+        XCTAssertEqual(CodexAccountService.accountsForProactiveTokenRefresh(config), ["beta"])
+    }
 }

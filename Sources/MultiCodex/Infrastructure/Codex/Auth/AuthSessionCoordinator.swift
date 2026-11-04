@@ -544,7 +544,7 @@ extension CodexAccountService {
         }
 
         var errors: [String: Error] = [:]
-        for account in config.accounts {
+        for account in Self.accountsForProactiveTokenRefresh(config) {
             let legacyAuthPath = paths.accountAuthPath(account)
             let authPath = managedAuthPath(for: account, paths: paths) ?? legacyAuthPath
             guard var payload = try? loadAuthPayload(from: authPath) else {
@@ -584,6 +584,14 @@ extension CodexAccountService {
             }
         }
         return errors
+    }
+
+    /// The current account's live token is in ~/.codex/auth.json and codex refreshes it.
+    /// Refresh tokens are single-use: refreshing our stored copy would fail with
+    /// "refresh_token_reused" or, worse, revoke the token codex is using. Its stored
+    /// copy is updated from the live file when the user switches away.
+    static func accountsForProactiveTokenRefresh(_ config: NativeConfig) -> [String] {
+        config.accounts.filter { $0 != config.currentAccount }
     }
 
     func refreshStaleTokens() async -> [String: Error] {
