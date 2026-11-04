@@ -1,149 +1,115 @@
-<div align="center">
-
 # MultiCodex
 
-**Manage multiple Codex accounts from your Mac menu bar.**
+[![CI](https://github.com/momoazn/multicodex/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/momoazn/multicodex/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/momoazn/multicodex)](https://github.com/momoazn/multicodex/releases/latest)
+![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
+![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Track usage across accounts. Switch instantly. Never hit a rate limit unprepared.
+A macOS menu bar app that manages multiple Codex CLI accounts. It shows usage for each account and switches accounts for you.
 
-> Disclaimer: MultiCodex is an independent open-source project. It is not affiliated with, endorsed by, or sponsored by OpenAI or the Codex CLI project.
+> MultiCodex is an independent open-source project. It is not affiliated with, endorsed by, or sponsored by OpenAI or the Codex CLI project.
 
-[Download Latest](https://github.com/momoazn/multicodex/releases/latest) · [Report a Bug](https://github.com/momoazn/multicodex/issues) · [Development Guide](docs/DEVELOPMENT.md)
+[Download](https://github.com/momoazn/multicodex/releases/latest) | [Report a bug](https://github.com/momoazn/multicodex/issues) | [Development guide](docs/DEVELOPMENT.md)
 
-</div>
+## The problem
 
----
+Codex limits usage per account in a 5-hour window and a weekly window. With more than one account, you must check each account by hand. You must also switch accounts by hand when one runs out.
 
-## Why MultiCodex?
-
-If you use Codex with multiple accounts, you know the friction — checking which account has headroom, manually switching when one runs out, losing track of where you are.
-
-MultiCodex makes it invisible. It lives in your menu bar and handles the bookkeeping so you can focus on coding.
+MultiCodex does this work from the menu bar.
 
 ## Features
 
-### 📊 Usage at a Glance
+- **Usage view.** Shows 5-hour and weekly usage for each account. Data refreshes in the background.
+- **Pace.** Compares the share of each window you have used with the share of time that has passed. It estimates when the quota runs out.
+- **Fast switching.** Switch, re-login, or check auth status from the menu. No terminal commands.
+- **Auto-switching.** Three strategies:
 
-See 5-hour and weekly usage for your active account as soon as you click the menu bar icon. Progress rings, compact bars, and percentage readouts — all updating in the background.
+  | Strategy | When it switches |
+  |----------|------------------|
+  | Manual | Never. |
+  | Failover | When the current account is near its limit or needs login. |
+  | Expiry-Aware | To the account with the most unused quota that is about to reset. |
 
-### ⚡ Instant Account Switching
+- **Notifications.** A native macOS notification appears on each auto-switch.
+- **Sorting.** Sort accounts by used, remaining, or name, for the 5-hour or weekly window.
+- **Backup and restore.** Export all accounts to one backup file, or one `auth.json` per account. Import with skip-existing or overwrite. Backups contain live credentials, so keep them private.
+- **Settings window.** General, Accounts, System, Data, and About sections.
 
-One click to switch between accounts. No terminal commands, no editing config files. Switch, re-login, or check auth status — all from the menu.
+## Install
 
-### 🔄 Smart Auto-Switching
-
-Let MultiCodex switch accounts for you:
-
-| Strategy | When it switches |
-|----------|-----------------|
-| **Manual** | Never — you're in control |
-| **Failover** | When the current account is near its limit or needs re-auth |
-| **Expiry-Aware** | To the account with the most usage that's about to reset, so nothing goes to waste |
-
-Get a native macOS notification every time it happens.
-
-### 🗂️ Flexible Sorting
-
-Sort your account list by usage, remaining headroom, or name. Choose the time window (5h or weekly) and direction. Your sort preference syncs between the menu bar and settings — set it once, see it everywhere.
-
-### ⚙️ Full Settings Panel
-
-A native settings window with everything you need:
-
-- **General** — appearance, density, bar style, auto-switching config
-- **Accounts** — login, rename, remove, check status, view per-account usage
-- **System** — Codex CLI path, diagnostics, cache interval
-- **About** — version info, keyboard shortcuts, support links
-
-### 🧑‍💻 Developer-Friendly
-
-- Pure Swift — no Electron, no Node, no JS runtime bundled
-- Built with SwiftUI and modern concurrency
-- Clean architecture with layered separation of concerns
-- ~8,200 lines of source, ~2,400 lines of tests
-
-## Installation
-
-### Download
-
-Grab the latest DMG from [Releases](https://github.com/momoazn/multicodex/releases/latest).
-
-### Install
-
-1. Open the DMG
-2. Drag **MultiCodex.app** to **Applications**
-3. Run this command (unsigned app — macOS requires it once):
-
-```bash
-sudo xattr -dr com.apple.quarantine /Applications/MultiCodex.app
-```
-
-4. Launch MultiCodex from Applications
-
-### Requirements
+Requirements:
 
 - macOS 13 (Ventura) or later
-- [Codex CLI](https://github.com/openai/codex) installed and in your `PATH` (or set a custom path in Settings → System)
+- [Codex CLI](https://github.com/openai/codex) in your `PATH`, or a custom path set in Settings > System
 
-## Support and Compatibility
+Steps:
 
-- Supported OS: macOS 13+
-- Recommended tools: latest stable Xcode and Swift toolchain
-- Runtime dependency: `codex` CLI available in `PATH` or configured in Settings > System
-- App signing: releases are currently unsigned, so first-run quarantine removal is required
-- Help and bugs: use [GitHub Issues](https://github.com/momoazn/multicodex/issues)
+1. Download the DMG from [Releases](https://github.com/momoazn/multicodex/releases/latest).
+2. Drag **MultiCodex.app** to **Applications**.
+3. Remove the quarantine flag once:
 
-## Getting Started
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/MultiCodex.app
+   ```
 
-1. **Launch MultiCodex** — the menu bar icon appears
-2. **Login your first account** — click the icon, then "Login First Account"
-3. **Add more accounts** — use "Login New" to add additional accounts
-4. **Configure auto-switching** — open Settings → General and pick a strategy
+   Why: the release build is ad-hoc signed, not signed with an Apple Developer ID, and not notarized. Gatekeeper blocks such apps on first launch. You own the copied app, so `sudo` is not needed. To check the code first, [build from source](#build-from-source).
+4. Open MultiCodex. The menu bar icon appears.
+5. Click the icon, then **Login New** to add an account. Repeat for each account.
+6. Open Settings > General to choose an auto-switching strategy.
 
-### Keyboard Shortcuts
+Shortcuts: `Cmd+R` refreshes usage. `Cmd+,` opens Settings.
 
-| Shortcut | Action |
-|----------|--------|
-| `⌘ R` | Refresh usage |
-| `⌘ ,` | Open settings |
+## Architecture
 
-## Building from Source
+MultiCodex is one SwiftUI executable with no third-party dependencies.
 
-You'll need Xcode 15+ and [just](https://github.com/casey/just):
+```
+Sources/MultiCodex/
+  App/              App entry point and delegate
+  Core/             Pure logic: usage and pace models, account switching, reconciliation
+  Infrastructure/   Codex runtime and RPC, usage API, auth and account storage, preferences, logging, notifications
+  Features/         SwiftUI views and controllers (menu bar, settings, shared components)
+```
+
+Key points:
+
+- **Usage source.** The app reads each account's usage from the ChatGPT usage endpoint with that account's saved login. If that fails, it falls back to the local `codex app-server` over JSON-RPC on stdio.
+- **Account switching.** The Codex CLI reads one auth file, `~/.codex/auth.json`. MultiCodex keeps one auth file per account and swaps the active one in. It verifies account identity before it writes auth back, so one account's token cannot overwrite another's. See the [incident report](docs/INCIDENT-2026-05-05.md) for the bug that led to this check.
+- **File safety.** Auth files and backups are written with mode `0600`.
+- **Log redaction.** All app logs pass through a redactor. It removes emails, bearer tokens, and OAuth token values.
+- **Concurrency.** `AccountsMenuViewModel` is `@MainActor`. Domain-scoped controllers handle refresh, login, settings, and account changes.
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for more detail.
+
+## Tests
+
+178 XCTest tests in 26 files. They cover account identity, reconciliation, auth swap, usage merge, pace, export, and error recovery.
+
+```bash
+just test    # run the tests
+just check   # toolchain check, debug build, tests
+```
+
+CI builds and runs the tests on every pull request and every push to `main`. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Build from source
+
+You need Xcode 15 or later and [just](https://github.com/casey/just).
 
 ```bash
 git clone https://github.com/momoazn/multicodex.git
 cd multicodex
-just doctor    # verify your toolchain
-just run       # build and launch
+just doctor   # check the toolchain
+just run      # build and launch
 ```
-
-For the full development reference, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Contributing
 
-Contributions are welcome. Please start with [CONTRIBUTING.md](CONTRIBUTING.md).
-
-Quick start:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Make your changes and add tests
-4. Run `just check` to verify everything passes
-5. Open a pull request
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for architecture details, common tasks, and coding patterns.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). Run `just check` before you open a pull request. Report security issues privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 
-This project is licensed under the terms found in the [LICENSE](LICENSE) file.
+MIT. See [LICENSE](LICENSE).
 
-OpenAI and Codex are trademarks of their respective owners. This repository is provided as an independent utility for users.
-
----
-
-<div align="center">
-
-Built with ❤️ using Swift and SwiftUI
-
-</div>
+OpenAI and Codex are trademarks of their respective owners.
