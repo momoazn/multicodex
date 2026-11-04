@@ -46,12 +46,13 @@ struct MultiCodexApp: App {
         WindowGroup("Settings", id: "settings") {
             SettingsContentView(viewModel: viewModel)
                 .frame(
-                    minWidth: 560,
-                    idealWidth: 600,
-                    minHeight: 400,
-                    idealHeight: 440
+                    minWidth: 680,
+                    idealWidth: 820,
+                    minHeight: 480,
+                    idealHeight: 600
                 )
         }
+        .defaultSize(width: 820, height: 600)
 
         WindowGroup("Batch Login Tracker", id: "batch-login") {
             SequentialLoginTrackerView(viewModel: viewModel)

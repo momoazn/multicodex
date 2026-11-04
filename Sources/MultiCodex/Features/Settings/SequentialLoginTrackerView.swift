@@ -16,6 +16,7 @@ struct SequentialLoginTrackerView: View {
                 emptyState
             }
         }
+        .preferredColorScheme(.dark)
     }
 
     private func content(state: SequentialLoginState) -> some View {

@@ -4,6 +4,20 @@ import XCTest
 
 @MainActor
 final class AccountsMenuViewModelTests: XCTestCase {
+    func testLastUpdatedLabelNeverShowsFutureOrZeroSeconds() {
+        let viewModel = AccountsMenuViewModel(accountService: MockCodexAccountService(), startImmediately: false)
+        let now = Date()
+        XCTAssertEqual(viewModel.lastUpdatedLabel(now: now), "Not refreshed yet")
+
+        // A timestamp a few ms ahead of `now` used to read "Updated in 0 sec.".
+        viewModel.lastUpdatedAt = now.addingTimeInterval(0.005)
+        XCTAssertEqual(viewModel.lastUpdatedLabel(now: now), "Updated just now")
+
+        viewModel.lastUpdatedAt = now.addingTimeInterval(-600)
+        XCTAssertTrue(viewModel.lastUpdatedLabel(now: now).hasPrefix("Updated "))
+        XCTAssertNotEqual(viewModel.lastUpdatedLabel(now: now), "Updated just now")
+    }
+
     func testSetLimitsCacheTTLUpdatesServiceAndPreferences() {
         let defaults = makeEphemeralDefaults()
         let preferences = AppPreferencesStore(defaults: defaults)

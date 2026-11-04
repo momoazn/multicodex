@@ -15,4 +15,11 @@ final class MenuBarIconRendererTests: XCTestCase {
         XCTAssertEqual(image.size.height, 18)
         XCTAssertFalse(image.isTemplate)
     }
+
+    func testAccessibilityDescriptionReadsUsage() {
+        XCTAssertEqual(
+            MenuBarIconRenderer.accessibilityDescription(fiveHourUsedPercent: 42.4, weeklyUsedPercent: nil, isStale: true),
+            "MultiCodex: 5-hour 42% used, weekly unknown, needs attention"
+        )
+    }
 }

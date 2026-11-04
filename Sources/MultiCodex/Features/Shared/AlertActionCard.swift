@@ -15,19 +15,6 @@ struct AlertActionCard: View {
         AccountPresentation.alertColor(for: alert.severity)
     }
 
-    private var severityLabel: String {
-        switch alert.severity {
-        case .runtimeUnavailable:
-            return "Runtime"
-        case .refreshError:
-            return "Error"
-        case .authRequired:
-            return "Account"
-        case .externalAuth:
-            return "Import"
-        }
-    }
-
     private var actionRole: ActionPillRole {
         alert.severity == .refreshError ? .primary : .secondary
     }
@@ -66,15 +53,9 @@ struct AlertActionCard: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(severityLabel.uppercased())
-                        .font(DashboardTokens.Font.caption())
-                        .tracking(0.6)
-                        .foregroundStyle(tone)
-                    Text(alert.title)
-                        .font(DashboardTokens.Font.metadata().weight(.semibold))
-                        .foregroundStyle(DashboardTokens.textPrimary)
-                }
+                Text(alert.title)
+                    .font(DashboardTokens.Font.bodySemibold())
+                    .foregroundStyle(DashboardTokens.textPrimary)
 
                 Text(alert.message)
                     .font(DashboardTokens.Font.metadata())

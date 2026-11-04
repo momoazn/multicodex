@@ -9,102 +9,159 @@ extension SettingsContentView {
         @State private var importResult: AccountExportService.ImportResult?
         @State private var exportError: String?
         @State private var authFilesExportStatus: String?
+        @State private var backupStatus: String?
+        @State private var backupError: String?
         @State private var importError: String?
 
         var body: some View {
-            SettingsPanelCard {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Backup & Restore")
-                        .font(.headline)
+            VStack(alignment: .leading, spacing: 16) {
+                SettingsPanelCard {
+                    VStack(alignment: .leading, spacing: 14) {
+                        sectionIntro(
+                            title: "Backup & Restore",
+                            description: "Save all accounts and preferences to one JSON file. Import it on any Mac to restore them.",
+                            symbol: "externaldrive.fill"
+                        )
 
-                    Text("Export all accounts and preferences to a JSON file. Import restores them on any Mac.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            performExport()
-                        } label: {
-                            Label("Export Backup", systemImage: "square.and.arrow.up")
-                        }
-                        .disabled(isExporting)
-
-                        Button {
-                            performAuthFilesExport()
-                        } label: {
-                            Label("Export Auth Files", systemImage: "folder.badge.plus")
-                        }
-                        .disabled(isExportingAuthFiles)
-
-                        Button {
-                            isImporting = true
-                        } label: {
-                            Label("Import Accounts", systemImage: "square.and.arrow.down")
-                        }
-                        .fileImporter(
-                            isPresented: $isImporting,
-                            allowedContentTypes: [.json],
-                            allowsMultipleSelection: false
-                        ) { result in
-                            performImport(result: result)
-                        }
-                    }
-
-                    if let error = exportError {
-                        Text("Export failed: \(error)")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    if let status = authFilesExportStatus {
-                        Text(status)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let error = importError {
-                        Text("Import failed: \(error)")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    if let result = importResult {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Import complete")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            Text("\(result.imported) imported, \(result.skipped) skipped")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if !result.conflicts.isEmpty {
-                                Text("Skipped (already exist): \(result.conflicts.joined(separator: ", "))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            ActionPillButton(
+                                title: "Export Backup",
+                                symbol: "square.and.arrow.up",
+                                role: .primary,
+                                isDisabled: isExporting
+                            ) {
+                                performExport()
                             }
+
+                            ActionPillButton(
+                                title: "Import Backup",
+                                symbol: "square.and.arrow.down",
+                                role: .secondary
+                            ) {
+                                isImporting = true
+                            }
+                            .fileImporter(
+                                isPresented: $isImporting,
+                                allowedContentTypes: [.json],
+                                allowsMultipleSelection: false
+                            ) { result in
+                                performImport(result: result)
+                            }
+
+                            Spacer(minLength: 0)
                         }
-                    }
 
-                    Divider()
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.yellow)
-                        Text("Exported files contain auth tokens. Store them securely.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if let status = backupStatus {
+                            statusRow(status, color: DashboardTokens.statusGreen)
+                        }
+                        if let error = backupError {
+                            statusRow("Export failed: \(error)", color: DashboardTokens.statusRed)
+                        }
+                        if let result = importResult {
+                            statusRow(
+                                "Import complete: \(result.imported) imported, \(result.skipped) skipped." +
+                                    (result.conflicts.isEmpty ? "" : " Already present: \(result.conflicts.joined(separator: ", ")).")
+                                , color: DashboardTokens.statusGreen
+                            )
+                        }
+                        if let error = importError {
+                            statusRow("Import failed: \(error)", color: DashboardTokens.statusRed)
+                        }
                     }
                 }
+
+                SettingsPanelCard {
+                    VStack(alignment: .leading, spacing: 14) {
+                        sectionIntro(
+                            title: "Auth Files",
+                            description: "Write one auth.json per account into a folder you choose. Use this to move a single account to another tool.",
+                            symbol: "folder.fill"
+                        )
+
+                        HStack(spacing: 8) {
+                            ActionPillButton(
+                                title: "Export Auth Files",
+                                symbol: "folder.badge.plus",
+                                role: .secondary,
+                                isDisabled: isExportingAuthFiles
+                            ) {
+                                performAuthFilesExport()
+                            }
+                            Spacer(minLength: 0)
+                        }
+
+                        if let status = authFilesExportStatus {
+                            statusRow(status, color: DashboardTokens.statusGreen)
+                        }
+                        if let error = exportError {
+                            statusRow("Export failed: \(error)", color: DashboardTokens.statusRed)
+                        }
+                    }
+                }
+
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(DashboardTokens.Font.metadata())
+                        .foregroundStyle(DashboardTokens.statusOrange)
+                    Text("Exported files contain login tokens. Anyone with the file can use these accounts. Store it like a password.")
+                        .font(DashboardTokens.Font.metadata())
+                        .foregroundStyle(DashboardTokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: DashboardTokens.Spacing.cardRadius, style: .continuous)
+                        .fill(DashboardTokens.statusOrange.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DashboardTokens.Spacing.cardRadius, style: .continuous)
+                        .stroke(DashboardTokens.statusOrange.opacity(0.22), lineWidth: 0.5)
+                )
+            }
+        }
+
+        private func sectionIntro(title: String, description: String, symbol: String) -> some View {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: symbol)
+                    .font(DashboardTokens.Font.cardHeading())
+                    .foregroundStyle(DashboardTokens.accent)
+                    .frame(width: 16)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(DashboardTokens.Font.cardHeading())
+                        .foregroundStyle(DashboardTokens.textPrimary)
+                    Text(description)
+                        .font(DashboardTokens.Font.metadata())
+                        .foregroundStyle(DashboardTokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+
+        private func statusRow(_ text: String, color: Color) -> some View {
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 7, height: 7)
+                    .padding(.top, 4)
+                Text(text)
+                    .font(DashboardTokens.Font.metadata())
+                    .foregroundStyle(DashboardTokens.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
         }
 
         private func performExport() {
             isExporting = true
-            exportError = nil
-            authFilesExportStatus = nil
+            backupError = nil
+            backupStatus = nil
             importResult = nil
 
             guard let service = viewModel.accountService as? CodexAccountService else {
-                exportError = "Service unavailable"
+                backupError = "Service unavailable"
                 isExporting = false
                 return
             }
@@ -122,18 +179,19 @@ extension SettingsContentView {
                     if response == .OK, let url = panel.url {
                         do {
                             try AccountExportService.writeBackupData(export.data, to: url)
+                            backupStatus = "Backup saved to \(url.lastPathComponent)."
                             if !export.skippedAccounts.isEmpty {
-                                authFilesExportStatus = "Backup saved. Skipped missing auth: " +
+                                backupStatus! += " Skipped accounts with no login: " +
                                     export.skippedAccounts.joined(separator: ", ")
                             }
                         } catch {
-                            exportError = error.localizedDescription
+                            backupError = error.localizedDescription
                         }
                     }
                     isExporting = false
                 }
             } catch {
-                exportError = error.localizedDescription
+                backupError = error.localizedDescription
                 isExporting = false
             }
         }
@@ -178,6 +236,8 @@ extension SettingsContentView {
         private func performImport(result: Result<[URL], Error>) {
             importError = nil
             importResult = nil
+            backupStatus = nil
+            backupError = nil
 
             guard let service = viewModel.accountService as? CodexAccountService else {
                 importError = "Service unavailable"

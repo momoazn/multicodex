@@ -152,11 +152,15 @@ final class AccountsMenuViewModel: ObservableObject {
             && sequentialLoginState?.isRunning != true
     }
 
-    var lastUpdatedLabel: String {
+    func lastUpdatedLabel(now: Date = Date()) -> String {
         guard let lastUpdatedAt else {
             return "Not refreshed yet"
         }
-        return "Updated \(UsageFormatter.relativeDateFormatter.localizedString(for: lastUpdatedAt, relativeTo: Date()))"
+        // The formatter says "in 0 sec." for a date a few ms in the future.
+        if now.timeIntervalSince(lastUpdatedAt) < 30 {
+            return "Updated just now"
+        }
+        return "Updated \(UsageFormatter.relativeDateFormatter.localizedString(for: lastUpdatedAt, relativeTo: now))"
     }
 
     var accountsNeedingLogin: [AccountUsage] {

@@ -123,56 +123,57 @@ struct SubtleWarningRow: View {
     }
 }
 
-// MARK: - Usage Metric Card
+// MARK: - Usage Meter
 
-struct AccountUsageMetricCard: View {
-    let title: String
-    let metric: UsageMetric
-    let resetDisplayMode: ResetDisplayMode
-    let progressValue: Double
-    let valueText: String
-
-    private var tone: Color {
+extension AccountPresentation {
+    /// One color rule for every usage meter: it uses the used percent, so the color
+    /// is the same in "remaining" and "used" bar styles.
+    static func usageColor(for metric: UsageMetric) -> Color {
         switch UsageLevel.from(usedPercent: metric.usedPercent) {
-        case .critical:
-            return DashboardTokens.statusRed
-        case .warning:
-            return DashboardTokens.statusOrange
-        case .normal:
-            return DashboardTokens.accentSoft
+        case .critical: return DashboardTokens.statusRed
+        case .warning: return DashboardTokens.statusOrange
+        case .normal: return DashboardTokens.accent
         }
     }
+}
+
+struct UsageMeterBar: View {
+    let progress: Double
+    let color: Color
+    var height: CGFloat = 4
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                DashboardSectionHeader(title: title)
-                Spacer()
-                Text(valueText)
-                    .font(DashboardTokens.Font.cardHeading())
-                    .foregroundStyle(DashboardTokens.textPrimary)
-                    .monospacedDigit()
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.08))
+                Capsule()
+                    .fill(color)
+                    .frame(width: proxy.size.width * CGFloat(min(1, max(0, progress))))
             }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
-
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                        .fill(tone)
-                        .frame(width: geo.size.width * CGFloat(min(1, progressValue)))
-                }
-            }
-            .frame(height: 5)
-
-            Text(metric.resetText(mode: resetDisplayMode))
-                .font(DashboardTokens.Font.metadata())
-                .foregroundStyle(DashboardTokens.textSecondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle(fill: DashboardTokens.cardBackgroundSubtle)
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Avatar
+
+struct AccountAvatar: View {
+    let name: String
+    let color: Color
+    var size: CGFloat = 26
+
+    var body: some View {
+        Circle()
+            .fill(color.opacity(0.16))
+            .overlay(Circle().stroke(color.opacity(0.36), lineWidth: 0.5))
+            .overlay(
+                Text(name.first.map { String($0).uppercased() } ?? "?")
+                    .font(.system(size: size * 0.46, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+            )
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
