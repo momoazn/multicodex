@@ -5,6 +5,12 @@ struct MultiCodexApp: App {
     @NSApplicationDelegateAdaptor(MultiCodexAppDelegate.self) private var appDelegate
     @StateObject private var viewModel = AccountsMenuViewModel()
 
+    init() {
+        // A codex child process can exit before we write its stdin. Report that as a
+        // write error instead of letting SIGPIPE kill the app.
+        signal(SIGPIPE, SIG_IGN)
+    }
+
     var body: some Scene {
         MenuBarExtra {
             AccountsMenuContentView(viewModel: viewModel)

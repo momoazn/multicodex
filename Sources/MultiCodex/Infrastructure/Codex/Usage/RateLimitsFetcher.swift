@@ -423,7 +423,13 @@ extension CodexAccountService {
 
         stdoutHandle.readabilityHandler = { handle in
             let data = handle.availableData
-            if data.isEmpty { return }
+            if data.isEmpty {
+                // EOF: codex exited. Without this the handler fires in a busy loop
+                // until the 12 s timeout.
+                handle.readabilityHandler = nil
+                signalOnce()
+                return
+            }
             let text = String(data: data, encoding: .utf8) ?? ""
 
             stateLock.lock()
@@ -457,7 +463,10 @@ extension CodexAccountService {
 
         stderrHandle.readabilityHandler = { handle in
             let data = handle.availableData
-            if data.isEmpty { return }
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
             let text = String(data: data, encoding: .utf8) ?? ""
             stateLock.lock()
             stderrBuffer += text
