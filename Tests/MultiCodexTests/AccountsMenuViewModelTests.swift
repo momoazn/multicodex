@@ -53,6 +53,24 @@ final class AccountsMenuViewModelTests: XCTestCase {
         XCTAssertTrue(persisted.autoSwitchNotificationsEnabled)
     }
 
+    func testSecondTriggeredRefreshRunsWhileCancelledRefreshIsStillUnwinding() async {
+        let service = MockCodexAccountService()
+        service.stubbedAccounts = [makeAccountEntry(name: "alpha", isCurrent: true)]
+        service.fetchLimitsDelayNanoseconds = 300_000_000
+
+        let viewModel = AccountsMenuViewModel(accountService: service, startImmediately: false)
+        viewModel.refresh()
+        await waitUntil(timeoutSeconds: 1.0) { service.fetchLimitsRefreshLiveCalls.count == 1 }
+
+        // The first task is cancelled but is still inside fetchLimits and holds isRefreshing.
+        viewModel.refresh()
+        await waitUntil(timeoutSeconds: 1.0) { service.fetchLimitsRefreshLiveCalls.count == 2 }
+        XCTAssertEqual(service.fetchLimitsRefreshLiveCalls.count, 2)
+
+        await waitUntil(timeoutSeconds: 2.0) { !viewModel.isRefreshing }
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
     func testManualStrategyDoesNotReconcileExternalAuthIntoCurrentAccount() async throws {
         let tempRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("MultiCodexTests-\(UUID().uuidString)", isDirectory: true)

@@ -17,7 +17,9 @@ final class AccountsRefreshController {
             return
         }
 
-        if viewModel.isRefreshing {
+        // A refresh with a generation comes from triggerRefresh, which already cancelled the
+        // older task. That task can still hold isRefreshing; skipping here would drop both.
+        if generation == nil, viewModel.isRefreshing {
             MultiCodexLog.log(.refresh, level: .debug, "Skipped refresh because another refresh is already running")
             return
         }
@@ -30,7 +32,7 @@ final class AccountsRefreshController {
         if refreshLive {
             let tokenErrors = await viewModel.accountService.refreshStaleTokens()
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
             if !tokenErrors.isEmpty {
@@ -45,7 +47,7 @@ final class AccountsRefreshController {
         var fetchedAccounts: AccountsListPayload?
         var switchRecommendation: AccountSwitchRecommendation?
         defer {
-            viewModel.isRefreshing = false
+            finishRefreshing(generation: generation)
             if let switchRecommendation {
                 applyAutomaticSwitch(recommendation: switchRecommendation)
             }
@@ -54,7 +56,7 @@ final class AccountsRefreshController {
         do {
             let accountsPayload = try await viewModel.accountService.fetchAccounts()
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
             fetchedAccounts = accountsPayload
@@ -88,7 +90,7 @@ final class AccountsRefreshController {
                 cancellationToken.cancel()
             }
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
 
@@ -426,6 +428,13 @@ final class AccountsRefreshController {
             } else if result.systemAuthChangedExternally, let email = result.detectedEmail {
                 viewModel.refreshWarningMessage = "Detected external login for \(email). This account is not in MultiCodex."
             }
+        }
+    }
+
+    /// Clears isRefreshing unless a newer refresh has started and now owns the flag.
+    private func finishRefreshing(generation: Int?) {
+        if generation == nil || generation == viewModel.refreshGeneration {
+            viewModel.isRefreshing = false
         }
     }
 
