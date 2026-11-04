@@ -322,63 +322,6 @@ extension CodexAccountService {
         return (results: results, errors: errors)
     }
 
-    func fetchRateLimitsViaRpc() throws -> RateLimitSnapshot {
-        do {
-            return try fetchRateLimitsViaPersistentRpc()
-        } catch {
-            MultiCodexLog.log(.rpc, level: .debug, "Persistent RPC failed, falling back to one-shot RPC: \(error.localizedDescription)")
-            return try fetchRateLimitsViaOneShotRpc()
-        }
-    }
-
-    private func fetchRateLimitsViaPersistentRpc() throws -> RateLimitSnapshot {
-        let paths = currentPaths()
-        var environment = baseEnvironment()
-        if let fingerprint = authFingerprint(at: paths.defaultCodexAuthPath) {
-            environment["MULTICODEX_AUTH_FINGERPRINT"] = fingerprint
-        }
-        let semaphore = DispatchSemaphore(value: 0)
-        var response: Result<[String: Any], Error>?
-
-        Task {
-            do {
-                let payload = try await CodexRPCSession.shared.fetchRateLimits(
-                    scopedHomePath: paths.defaultCodexHome,
-                    customCodexPath: customCodexPath,
-                    environment: environment
-                )
-                response = .success(payload)
-            } catch {
-                response = .failure(error)
-            }
-            semaphore.signal()
-        }
-
-        guard semaphore.wait(timeout: .now() + 35) == .success else {
-            Task { await CodexRPCSession.shared.shutdown() }
-            throw CodexAccountServiceError(message: "Codex persistent RPC timed out while fetching rate limits.")
-        }
-
-        switch response {
-        case .success(let payload):
-            return try decodeRateLimitsRPCMessage(payload)
-        case .failure(let error):
-            throw error
-        case nil:
-            throw CodexAccountServiceError(message: "Codex persistent RPC returned no response.")
-        }
-    }
-
-    private func authFingerprint(at path: String) -> String? {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path) else {
-            return "missing"
-        }
-
-        let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
-        let modifiedAt = (attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        return "\(size):\(modifiedAt)"
-    }
-
     private func fetchRateLimitsViaOneShotRpc() throws -> RateLimitSnapshot {
         let runtime = try resolveCodexRuntime()
         let process = Process()
