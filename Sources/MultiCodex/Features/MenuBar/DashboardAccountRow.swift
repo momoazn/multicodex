@@ -111,9 +111,12 @@ struct DashboardAccountRow: View {
     }
 
     /// Inline micro usage bar color for the 5h metric in collapsed state
+    /// Based on used percent, not on the bar fill: in "depleting" style the fill is the
+    /// remaining share, so a full (fresh) bar would show red.
     private var microBarColor: Color {
-        if fiveHourProgressValue > 0.80 { return DashboardTokens.statusRed }
-        if fiveHourProgressValue > 0.60 { return DashboardTokens.statusOrange }
+        let used = (row.account.usage.fiveHour.usedPercent ?? 0) / 100
+        if used > 0.80 { return DashboardTokens.statusRed }
+        if used > 0.60 { return DashboardTokens.statusOrange }
         return DashboardTokens.accent
     }
 
@@ -390,13 +393,6 @@ struct DashboardAccountRow: View {
                 }
 
                 Spacer(minLength: 6)
-
-                if let cost = row.account.costReport, cost.totalCostUSD > 0 {
-                    Label("\(cost.formattedToday) today", systemImage: "dollarsign.circle")
-                        .font(DashboardTokens.Font.metadata())
-                        .foregroundStyle(DashboardTokens.textSecondary)
-                        .lineLimit(1)
-                }
             }
         }
     }

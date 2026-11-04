@@ -415,7 +415,9 @@ extension CodexAccountService {
     }
 
     func buildWindow(usedPercent: Double?, windowDurationMins: Int?, resetsAt: Double?) -> RateLimitWindow? {
-        if usedPercent == nil, windowDurationMins == nil, resetsAt == nil {
+        // The duration always has a fallback, so it alone does not prove the window exists.
+        // Without this check an error body or `{}` becomes an empty "successful" snapshot.
+        if usedPercent == nil, resetsAt == nil {
             return nil
         }
         return RateLimitWindow(

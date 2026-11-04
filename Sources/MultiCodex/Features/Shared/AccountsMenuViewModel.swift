@@ -152,42 +152,6 @@ final class AccountsMenuViewModel: ObservableObject {
             && sequentialLoginState?.isRunning != true
     }
 
-    var menuBarTitle: String {
-        guard let current = currentAccount else {
-            return accounts.isEmpty ? "mcx" : "mcx ?"
-        }
-
-        if let percent = compactPercentText(for: current.usage) {
-            return "mcx \(percent)"
-        }
-
-        return "mcx \(current.name)"
-    }
-
-    var menuBarSymbol: String {
-        if lastRefreshError != nil {
-            return "exclamationmark.triangle.fill"
-        }
-
-        let constrainedUsedPercent = currentAccount.flatMap { compactUsedPercent(for: $0.usage) }
-        switch UsageLevel.from(usedPercent: constrainedUsedPercent) {
-        case .critical:
-            return "flame.fill"
-        case .warning:
-            return "gauge.with.dots.needle.67percent"
-        case .normal:
-            return "person.2.circle"
-        }
-    }
-
-    var currentFiveHourFraction: Double {
-        currentAccount?.usage.fiveHour.normalizedFraction ?? 0
-    }
-
-    var currentWeeklyFraction: Double {
-        currentAccount?.usage.weekly.normalizedFraction ?? 0
-    }
-
     var lastUpdatedLabel: String {
         guard let lastUpdatedAt else {
             return "Not refreshed yet"
@@ -294,13 +258,6 @@ final class AccountsMenuViewModel: ObservableObject {
         [.general, .accounts, .system, .data, .about]
     }
 
-    func menuAccountRows(limit: Int? = nil) -> [AccountRowState] {
-        let maxCount = limit ?? preferredMenuAccountCount
-        return Array(menuListAccounts.prefix(maxCount)).map { account in
-            AccountRowState(account: account, resetDisplayMode: resetDisplayMode)
-        }
-    }
-
     func start() {
         guard refreshLoopTask == nil else {
             return
@@ -367,11 +324,6 @@ final class AccountsMenuViewModel: ObservableObject {
     }
 
     func selectSettingsSection(_ section: SettingsSection) { settingsController.selectSettingsSection(section) }
-
-    func resetOnboardingWizard() {
-        selectSettingsAccount(named: nil)
-        selectSettingsSection(.general)
-    }
 
     func selectSettingsAccount(named name: String?) { settingsController.selectSettingsAccount(named: name) }
 
@@ -440,24 +392,6 @@ final class AccountsMenuViewModel: ObservableObject {
         return Self.formatPercent(value)
     }
 
-    func compactProgressValue(for usage: UsageSummary) -> Double {
-        guard let usedPercent = compactUsedPercent(for: usage) else {
-            return 0
-        }
-        return progressValue(fromUsedFraction: min(1, max(0, usedPercent / 100)))
-    }
-
-    func compactUsedPercent(for usage: UsageSummary) -> Double? {
-        constrainedMetric(in: usage)?.usedPercent
-    }
-
-    func compactPercentText(for usage: UsageSummary) -> String? {
-        guard let constrainedMetric = constrainedMetric(in: usage) else {
-            return nil
-        }
-        return displayPercentText(for: constrainedMetric)
-    }
-
     private func usedFraction(for metric: UsageMetric) -> Double {
         guard let usedPercent = metric.usedPercent else {
             return 0
@@ -474,21 +408,6 @@ final class AccountsMenuViewModel: ObservableObject {
         }
     }
 
-    private func constrainedMetric(in usage: UsageSummary) -> UsageMetric? {
-        let fiveHourUsed = usage.fiveHour.usedPercent
-        let weeklyUsed = usage.weekly.usedPercent
-        switch (fiveHourUsed, weeklyUsed) {
-        case let (fiveHour?, weekly?):
-            return fiveHour >= weekly ? usage.fiveHour : usage.weekly
-        case (_?, nil):
-            return usage.fiveHour
-        case (nil, _?):
-            return usage.weekly
-        case (nil, nil):
-            return nil
-        }
-    }
-
     private static func formatPercent(_ value: Double) -> String {
         let clampedValue = min(100, max(0, value))
         let rounded = (clampedValue * 10.0).rounded() / 10.0
@@ -496,10 +415,6 @@ final class AccountsMenuViewModel: ObservableObject {
             return String(format: "%.0f%%", rounded)
         }
         return String(format: "%.1f%%", rounded)
-    }
-
-    func dismissFocusHint() {
-        focusedAccountName = nil
     }
 
     func updateCustomCodexPath(_ value: String) { settingsController.updateCustomCodexPath(value) }
@@ -599,15 +514,6 @@ final class AccountsMenuViewModel: ObservableObject {
            !accounts.contains(where: { $0.name == focusedAccountName })
         {
             self.focusedAccountName = nil
-        }
-    }
-
-    var accountSortMenuLabel: String {
-        switch accountSortCriterion {
-        case .name:
-            return accountSortDirection == .ascending ? "Name A→Z" : "Name Z→A"
-        case .used, .remaining:
-            return "\(accountSortCriterion.title) (\(accountSortWindow.title.lowercased())) \(accountSortDirection.arrowSymbol)"
         }
     }
 

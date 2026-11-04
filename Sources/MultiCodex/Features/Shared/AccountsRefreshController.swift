@@ -3,7 +3,6 @@ import Foundation
 @MainActor
 final class AccountsRefreshController {
     unowned let viewModel: AccountsMenuViewModel
-    private let usagePaceStore = UsagePaceStore()
 
     init(viewModel: AccountsMenuViewModel) {
         self.viewModel = viewModel
@@ -17,7 +16,9 @@ final class AccountsRefreshController {
             return
         }
 
-        if viewModel.isRefreshing {
+        // A refresh with a generation comes from triggerRefresh, which already cancelled the
+        // older task. That task can still hold isRefreshing; skipping here would drop both.
+        if generation == nil, viewModel.isRefreshing {
             MultiCodexLog.log(.refresh, level: .debug, "Skipped refresh because another refresh is already running")
             return
         }
@@ -30,7 +31,7 @@ final class AccountsRefreshController {
         if refreshLive {
             let tokenErrors = await viewModel.accountService.refreshStaleTokens()
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
             if !tokenErrors.isEmpty {
@@ -45,7 +46,7 @@ final class AccountsRefreshController {
         var fetchedAccounts: AccountsListPayload?
         var switchRecommendation: AccountSwitchRecommendation?
         defer {
-            viewModel.isRefreshing = false
+            finishRefreshing(generation: generation)
             if let switchRecommendation {
                 applyAutomaticSwitch(recommendation: switchRecommendation)
             }
@@ -54,15 +55,14 @@ final class AccountsRefreshController {
         do {
             let accountsPayload = try await viewModel.accountService.fetchAccounts()
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
             fetchedAccounts = accountsPayload
-            await applyMergedAccounts(
+            applyMergedAccounts(
                 accountsPayload: accountsPayload,
                 limits: LimitsPayload(results: [], errors: []),
-                previousAccounts: previousAccounts,
-                recordPace: false
+                previousAccounts: previousAccounts
             )
 
             let cancellationToken = RefreshCancellationToken()
@@ -76,11 +76,10 @@ final class AccountsRefreshController {
                         if self.isRefreshStale(generation: generation) {
                             return
                         }
-                        await self.applyMergedAccounts(
+                        self.applyMergedAccounts(
                             accountsPayload: accountsPayload,
                             limits: partial,
-                            previousAccounts: previousAccounts,
-                            recordPace: false
+                            previousAccounts: previousAccounts
                         )
                     }
                 }
@@ -88,15 +87,14 @@ final class AccountsRefreshController {
                 cancellationToken.cancel()
             }
             if isRefreshStale(generation: generation) {
-                viewModel.isRefreshing = false
+                finishRefreshing(generation: generation)
                 return
             }
 
-            await applyMergedAccounts(
+            applyMergedAccounts(
                 accountsPayload: accountsPayload,
                 limits: limits,
-                previousAccounts: previousAccounts,
-                recordPace: true
+                previousAccounts: previousAccounts
             )
             let quotaTransitions = QuotaTransitionDetector.detectTransitions(
                 previous: previousAccounts,
@@ -140,11 +138,10 @@ final class AccountsRefreshController {
             MultiCodexLog.log(.refresh, level: .error, "Refresh failed: \(error.localizedDescription)")
             viewModel.cliResolutionHint = viewModel.accountService.resolutionHint
             if let fetchedAccounts {
-                await applyMergedAccounts(
+                applyMergedAccounts(
                     accountsPayload: fetchedAccounts,
                     limits: LimitsPayload(results: [], errors: []),
-                    previousAccounts: previousAccounts,
-                    recordPace: false
+                    previousAccounts: previousAccounts
                 )
                 viewModel.lastRefreshError = nil
                 viewModel.refreshWarningMessage = "Loaded accounts, but usage refresh failed: \(error.localizedDescription)"
@@ -170,11 +167,10 @@ final class AccountsRefreshController {
         do {
             let accountsPayload = try await viewModel.accountService.fetchAccounts()
             let cachedLimits = try? await viewModel.accountService.fetchCachedLimits()
-            await applyMergedAccounts(
+            applyMergedAccounts(
                 accountsPayload: accountsPayload,
                 limits: cachedLimits ?? LimitsPayload(results: [], errors: []),
-                previousAccounts: previousAccounts,
-                recordPace: cachedLimits?.results.isEmpty == false
+                previousAccounts: previousAccounts
             )
             viewModel.lastRefreshError = nil
             viewModel.refreshWarningMessage = nil
@@ -300,9 +296,8 @@ final class AccountsRefreshController {
     private func applyMergedAccounts(
         accountsPayload: AccountsListPayload,
         limits: LimitsPayload,
-        previousAccounts: [AccountUsage],
-        recordPace: Bool
-    ) async {
+        previousAccounts: [AccountUsage]
+    ) {
         viewModel.updateAccounts(
             AccountUsageMergeService.mergeAccounts(
                 accounts: accountsPayload,
@@ -310,9 +305,6 @@ final class AccountsRefreshController {
                 previousAccounts: previousAccounts
             )
         )
-        if recordPace {
-            await usagePaceStore.record(accounts: viewModel.accounts)
-        }
         viewModel.clearFocusedAccountIfMissing()
         viewModel.syncSelectedSettingsAccount()
     }
@@ -426,6 +418,13 @@ final class AccountsRefreshController {
             } else if result.systemAuthChangedExternally, let email = result.detectedEmail {
                 viewModel.refreshWarningMessage = "Detected external login for \(email). This account is not in MultiCodex."
             }
+        }
+    }
+
+    /// Clears isRefreshing unless a newer refresh has started and now owns the flag.
+    private func finishRefreshing(generation: Int?) {
+        if generation == nil || generation == viewModel.refreshGeneration {
+            viewModel.isRefreshing = false
         }
     }
 

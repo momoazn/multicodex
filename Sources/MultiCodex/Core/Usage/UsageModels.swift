@@ -66,13 +66,6 @@ struct UsageMetric {
     let periodMinutes: Int?
     let resetsAt: Date?
 
-    var normalizedFraction: Double {
-        guard let usedPercent else {
-            return 0
-        }
-        return min(1, max(0, usedPercent / 100))
-    }
-
     func resetText(mode: ResetDisplayMode) -> String {
         UsageFormatter.resetText(for: resetsAt, mode: mode)
     }
@@ -96,7 +89,6 @@ struct AccountUsage: Identifiable {
     let usageError: String?
     let fiveHourPace: UsagePace?
     let weeklyPace: UsagePace?
-    let costReport: CostReport?
 
     init(
         name: String,
@@ -109,8 +101,7 @@ struct AccountUsage: Identifiable {
         source: String,
         usageError: String?,
         fiveHourPace: UsagePace? = nil,
-        weeklyPace: UsagePace? = nil,
-        costReport: CostReport? = nil
+        weeklyPace: UsagePace? = nil
     ) {
         self.name = name
         self.isCurrent = isCurrent
@@ -123,7 +114,6 @@ struct AccountUsage: Identifiable {
         self.usageError = usageError
         self.fiveHourPace = fiveHourPace
         self.weeklyPace = weeklyPace
-        self.costReport = costReport
     }
 
     var id: String { name }

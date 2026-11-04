@@ -128,7 +128,7 @@ enum CodexRuntimeResolver {
         return nil
     }
 
-    private static func firstExecutablePath(
+    static func firstExecutablePath(
         in output: String?,
         fileManager: FileManager
     ) -> String? {
@@ -138,8 +138,10 @@ enum CodexRuntimeResolver {
 
         var seen = Set<String>()
 
-        for token in output.split(whereSeparator: \.isWhitespace) {
-            let candidate = (String(token) as NSString).expandingTildeInPath
+        // One path per line; a path may contain spaces (e.g. "Application Support").
+        for line in output.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let candidate = (trimmed as NSString).expandingTildeInPath
             guard candidate.contains("/"), seen.insert(candidate).inserted else {
                 continue
             }

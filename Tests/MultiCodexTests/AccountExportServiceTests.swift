@@ -158,6 +158,28 @@ final class AccountExportServiceTests: XCTestCase {
         XCTAssertEqual(betaPerms, 0o600)
     }
 
+    func testExportReportsSkippedAccountsAndRefusesEmptyBackup() throws {
+        let tempDir = NSTemporaryDirectory() + "mc-test-export-skip-\(UUID().uuidString)"
+        let fm = FileManager.default
+        try fm.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: tempDir) }
+
+        let service = CodexAccountService()
+        service.sandboxHomeDirectory = (tempDir as NSString).appendingPathComponent("home")
+        service.sandboxMulticodexHomeDirectory = (tempDir as NSString).appendingPathComponent("config")
+        try fm.createDirectory(atPath: service.effectiveMulticodexHomePath(), withIntermediateDirectories: true)
+        _ = try service.addAccountNow(name: "alpha")
+        _ = try service.addAccountNow(name: "beta")
+        let prefs = AppPreferencesStore(defaults: makeEphemeralDefaults())
+
+        // No account has auth: nothing to back up.
+        XCTAssertThrowsError(try AccountExportService.exportData(accountService: service, preferencesStore: prefs))
+
+        try Data("{}".utf8).write(to: URL(fileURLWithPath: service.currentPaths().accountAuthPath("alpha")))
+        let result = try AccountExportService.exportData(accountService: service, preferencesStore: prefs)
+        XCTAssertEqual(result.skippedAccounts, ["beta"])
+    }
+
     func testExportPrefersManagedAuthWhenMigrationComplete() throws {
         let tempDir = NSTemporaryDirectory() + "mc-test-export-managed-\(UUID().uuidString)"
         let fm = FileManager.default
@@ -175,7 +197,7 @@ final class AccountExportServiceTests: XCTestCase {
         let managedHome = try ManagedCodexHomeFactory.createHome(for: "alpha", multicodexHome: paths.multicodexHome)
         try ManagedCodexHomeFactory.writeAuthData(Data("{\"tokens\":{\"access_token\":\"managed\"}}".utf8), to: managedHome)
 
-        let data = try AccountExportService.exportData(accountService: service, preferencesStore: AppPreferencesStore(defaults: makeEphemeralDefaults()))
+        let data = try AccountExportService.exportData(accountService: service, preferencesStore: AppPreferencesStore(defaults: makeEphemeralDefaults())).data
         let payload = try JSONDecoder().decode(AccountExportService.ExportPayload.self, from: data)
         let authString = String(data: payload.accounts.first!.auth, encoding: .utf8)
         XCTAssertTrue(authString?.contains("managed") == true)
@@ -254,7 +276,7 @@ final class AccountExportServiceTests: XCTestCase {
         let exportData = try AccountExportService.exportData(
             accountService: service,
             preferencesStore: prefs
-        )
+        ).data
         let exportURL = URL(fileURLWithPath: tempDir).appendingPathComponent("export.json")
         try exportData.write(to: exportURL)
 

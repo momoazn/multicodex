@@ -32,6 +32,11 @@ enum AccountExportService {
         let conflicts: [String]
     }
 
+    struct BackupExportResult {
+        let data: Data
+        let skippedAccounts: [String]
+    }
+
     struct AuthFilesExportResult: Equatable {
         let exported: Int
         let skippedAccounts: [String]
@@ -64,7 +69,7 @@ enum AccountExportService {
     static func exportData(
         accountService: CodexAccountService,
         preferencesStore: AppPreferencesStore
-    ) throws -> Data {
+    ) throws -> BackupExportResult {
         let paths = accountService.currentPaths()
         let config = try accountService.loadConfig(paths: paths)
 
@@ -73,19 +78,26 @@ enum AccountExportService {
         }
 
         var exportedAccounts: [ExportedAccount] = []
-        for accountName in config.accounts {
+        var skippedAccounts: [String] = []
+        for accountName in config.accounts.sorted() {
             let authPath = accountService.managedAuthPath(for: accountName, paths: paths) ?? paths.accountAuthPath(accountName)
             guard let authData = try? Data(contentsOf: URL(fileURLWithPath: authPath)) else {
+                skippedAccounts.append(accountName)
                 MultiCodexLog.log(.config, level: .debug, "Skipping account \(accountName) — auth data missing")
                 continue
             }
             exportedAccounts.append(ExportedAccount(name: accountName, auth: authData))
         }
 
+        // A backup without any auth restores nothing; fail instead of writing it.
+        guard !exportedAccounts.isEmpty else {
+            throw ExportError.noAccounts
+        }
+
         let payload = ExportPayload(
             version: 1,
             exportedAt: ISO8601DateFormatter().string(from: Date()),
-            appVersion: "0.5.0",
+            appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev",
             accounts: exportedAccounts,
             preferences: ExportedPreferences(
                 accountSwitchingStrategy: preferencesStore.accountSwitchingStrategy.rawValue,
@@ -100,7 +112,7 @@ enum AccountExportService {
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(payload)
+        return BackupExportResult(data: try encoder.encode(payload), skippedAccounts: skippedAccounts)
     }
 
     static func exportAuthFiles(

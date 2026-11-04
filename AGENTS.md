@@ -9,7 +9,7 @@ Native macOS menu bar app for managing multiple Codex accounts with usage tracki
 - **Build**: SwiftPM + `just` (see `justfile`)
 - **Entry**: `Sources/MultiCodex/App/MultiCodexApp.swift`
 - **Latest release**: see [GitHub Releases](https://github.com/momoazn/multicodex/releases/latest)
-- **Lines of code**: ~14.6k (source) + ~5.0k (tests)
+- **Lines of code**: ~13.5k (source) + ~4.8k (tests)
 
 ## Architecture
 
@@ -170,7 +170,7 @@ All async account work goes through controllers:
 
 ## Testing & Quality
 
-- Swift tests in `Tests/MultiCodexTests/` (~5.0k lines):
+- Swift tests in `Tests/MultiCodexTests/` (~4.8k lines):
   - `AccountsMenuViewModelTests` — view model + sort behavior
   - `AccountRowStateTests` — row state derivation
   - `AccountUsageMergeServiceTests` — account/usage merge

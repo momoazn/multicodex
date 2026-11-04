@@ -84,7 +84,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for more detail.
 
 ## Tests
 
-178 XCTest tests in 26 files. They cover account identity, reconciliation, auth swap, usage merge, pace, export, and error recovery.
+170 XCTest tests in 25 files. They cover account identity, reconciliation, auth swap, usage merge, pace, export, and error recovery.
 
 ```bash
 just test    # run the tests
