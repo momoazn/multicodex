@@ -327,10 +327,6 @@ enum AccountSwitchRecommendationService {
             }
         }
 
-        if let probability = account.fiveHourPace?.runOutProbability, probability > 0.5 {
-            bonus -= Double(probability) * 0.12
-        }
-
         return baseScore + bonus
     }
 }

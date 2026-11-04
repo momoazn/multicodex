@@ -22,14 +22,12 @@ struct UsagePace: Equatable {
     let actualUsedPercent: Double
     let etaSeconds: TimeInterval?
     let willLastToReset: Bool
-    let runOutProbability: Double?
 
     static func compute(
         usedPercent: Double?,
         periodMinutes: Int?,
         resetsAt: Date?,
-        now: Date = Date(),
-        runOutProbability: Double? = nil
+        now: Date = Date()
     ) -> UsagePace? {
         guard let usedPercent,
               let periodMinutes,
@@ -75,8 +73,7 @@ struct UsagePace: Equatable {
             expectedUsedPercent: expected,
             actualUsedPercent: actual,
             etaSeconds: etaSeconds,
-            willLastToReset: willLastToReset,
-            runOutProbability: runOutProbability
+            willLastToReset: willLastToReset
         )
     }
 
@@ -121,16 +118,8 @@ struct UsagePace: Equatable {
         return "Runs out in \(minutes)m"
     }
 
-    var riskText: String? {
-        guard let runOutProbability else {
-            return nil
-        }
-        let percent = Int((runOutProbability.clamped(to: 0...1) * 100).rounded())
-        return percent > 0 ? "≈ \(percent)% run-out risk" : nil
-    }
-
     var detailText: String {
-        [summaryText, etaText, riskText].compactMap { $0 }.joined(separator: " · ")
+        [summaryText, etaText].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
